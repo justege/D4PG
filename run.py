@@ -170,8 +170,8 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
     for frame in range(1, frames + 1):
         # evaluation runs
 
-        if frame % 10 == 0 or frame == 1:
-            print(frame)
+        #if frame % 10 == 0 or frame == 1:
+            #print(frame)
 
 
         action = agent.act(state)
@@ -193,7 +193,7 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
         minmax_scores.append((np.min(score), np.max(score)))
         average_100_scores.append(np.mean(scores_deque))
 
-        if i_episode % 10 == 0:
+        if i_episode % 3 == 0:
             df = pd.DataFrame(list(zip(average_100_scores, scores_deque, amount_penalty, state, action_v)))
             df.to_csv('results.csv', mode='a', encoding='utf-8', index=False)
             torch.save(agent.actor_local.state_dict(), "runs/checkpoint_actor" + str(i_episode) + ".pth")
@@ -254,7 +254,7 @@ parser.add_argument("-bs", "--batch_size", type=int, default=256, help="Batch si
 parser.add_argument("-t", "--tau", type=float, default=1e-3,
                     help="Softupdate factor tau, default is 1e-3")  # for per 1e-2 for regular 1e-3 -> Pendulum!
 parser.add_argument("-g", "--gamma", type=float, default=0.99, help="discount factor gamma, default is 0.99")
-parser.add_argument("-w", "--worker", type=int, default=4, help="Number of parallel environments, default = 1")
+parser.add_argument("-w", "--worker", type=int, default=1, help="Number of parallel environments, default = 1")
 parser.add_argument("--saved_model", type=str, default=None, help="Load a saved model to perform a test run!")
 parser.add_argument("--icm", type=int, default=0, choices=[0, 1],
                     help="Using Intrinsic Curiosity Module, default=0 (NO!)")
