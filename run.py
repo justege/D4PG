@@ -170,8 +170,8 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
     for frame in range(1, frames + 1):
         # evaluation runs
 
-        #if frame % 10 == 0 or frame == 1:
-            #print(frame)
+        if frame % 1000 == 0 or frame == 1:
+            print(frame)
 
 
         action = agent.act(state)
@@ -193,12 +193,12 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
         minmax_scores.append((np.min(score), np.max(score)))
         average_100_scores.append(np.mean(scores_deque))
 
-        if i_episode % 3 == 0:
+        if i_episode % 25 == 0:
             df = pd.DataFrame(list(zip(average_100_scores, scores_deque, amount_penalty, state, action_v)))
             df.to_csv('results.csv', mode='a', encoding='utf-8', index=False)
             torch.save(agent.actor_local.state_dict(), "runs/checkpoint_actor" + str(i_episode) + ".pth")
             torch.save(agent.critic_local.state_dict(), "runs/checkpoint_critic" + str(i_episode) + ".pth")
-        if i_episode % 3 == 0:
+        if i_episode % 25 == 0:
             print('\rEpisode {}\tFrame {} \tAverage100 Score: {:.2f}'.format(i_episode * worker, frame * worker,
                                                                              np.mean(scores_window)), end="")
 
@@ -234,7 +234,7 @@ parser.add_argument("-noise", type=str, choices=["ou", "gauss"], default="OU",
 parser.add_argument("-info", type=str, default="runsfirst", help="Information or name of the run")
 parser.add_argument("-d2rl", type=int, choices=[0, 1], default=0,
                     help="Uses Deep Actor and Deep Critic Networks if set to 1 as described in the D2RL Paper: https://arxiv.org/pdf/2010.09163.pdf, default=0")
-parser.add_argument("-frames", type=int, default=1_000_000,
+parser.add_argument("-frames", type=int, default=100000,
                     help="The amount of training interactions with the environment, default is 1mio")
 parser.add_argument("-eval_every", type=int, default=10000,
                     help="Number of interactions after which the evaluation runs are performed, default = 10000")
