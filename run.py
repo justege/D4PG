@@ -170,7 +170,7 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
     for frame in range(1, frames + 1):
         # evaluation runs
 
-        if frame % 1000 == 0 or frame == 1:
+        if frame % 10 == 0 or frame == 1:
             print(frame)
 
 
