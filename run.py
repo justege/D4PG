@@ -170,8 +170,8 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
     for frame in range(1, frames + 1):
         # evaluation runs
 
-        if frame % 10 == 0 or frame == 1:
-            print(frame)
+        #if frame %  == 0 or frame == 1:
+        #    print(frame)
 
 
         action = agent.act(state)
@@ -254,7 +254,7 @@ parser.add_argument("-bs", "--batch_size", type=int, default=256, help="Batch si
 parser.add_argument("-t", "--tau", type=float, default=1e-3,
                     help="Softupdate factor tau, default is 1e-3")  # for per 1e-2 for regular 1e-3 -> Pendulum!
 parser.add_argument("-g", "--gamma", type=float, default=0.99, help="discount factor gamma, default is 0.99")
-parser.add_argument("-w", "--worker", type=int, default=4, help="Number of parallel environments, default = 1")
+parser.add_argument("-w", "--worker", type=int, default=2, help="Number of parallel environments, default = 1")
 parser.add_argument("--saved_model", type=str, default=None, help="Load a saved model to perform a test run!")
 parser.add_argument("--icm", type=int, default=0, choices=[0, 1],
                     help="Using Intrinsic Curiosity Module, default=0 (NO!)")
@@ -269,10 +269,10 @@ if __name__ == "__main__":
     if os.path.exists(preprocessed_path):
         data = pd.read_csv(preprocessed_path, index_col=0)
 
-    unique_trade_date = data[(data.datadate > 20151001) & (data.datadate <= 20200707)].datadate.unique()
+    unique_trade_date = data[(data.datadate > 20181001) & (data.datadate <= 20200101)].datadate.unique()
     # print(unique_trade_date)
 
-    train = data_split(data, start=20100101, end=20170101)
+    train = data_split(data, start=20180101, end=20200101)
 
     env_name = args.env
     seed = args.seed
