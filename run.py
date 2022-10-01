@@ -254,7 +254,7 @@ parser.add_argument("-bs", "--batch_size", type=int, default=256, help="Batch si
 parser.add_argument("-t", "--tau", type=float, default=1e-3,
                     help="Softupdate factor tau, default is 1e-3")  # for per 1e-2 for regular 1e-3 -> Pendulum!
 parser.add_argument("-g", "--gamma", type=float, default=0.99, help="discount factor gamma, default is 0.99")
-parser.add_argument("-w", "--worker", type=int, default=1, help="Number of parallel environments, default = 1")
+parser.add_argument("-w", "--worker", type=int, default=4, help="Number of parallel environments, default = 1")
 parser.add_argument("--saved_model", type=str, default=None, help="Load a saved model to perform a test run!")
 parser.add_argument("--icm", type=int, default=0, choices=[0, 1],
                     help="Using Intrinsic Curiosity Module, default=0 (NO!)")
