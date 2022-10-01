@@ -235,9 +235,9 @@ def run(frames=1000, eval_every=10000, eval_runs=5, worker=1):
 
         if i_episode % 10 == 0:
             df = pd.DataFrame(list(zip(episodes,average_100_scores, scores_deque, amount_penalty, state, action_v)))
-            df.to_csv('results_128_2016_2019_tau03_.csv', mode='a', encoding='utf-8', index=False)
-            torch.save(agent.actor_local.state_dict(), "runs/checkpoint_actor_128_2016_2019_tau03_" + str(i_episode) + ".pth")
-            torch.save(agent.critic_local.state_dict(), "runs/checkpoint_critic_128_2016_2019_tau03_" + str(i_episode) + ".pth")
+            df.to_csv('results_128_2016_2019_tau1_.csv', mode='a', encoding='utf-8', index=False)
+            torch.save(agent.actor_local.state_dict(), "runs/checkpoint_actor_128_2016_2019_tau1_" + str(i_episode) + ".pth")
+            torch.save(agent.critic_local.state_dict(), "runs/checkpoint_critic_128_2016_2019_tau1_" + str(i_episode) + ".pth")
         if i_episode % 10 == 0:
             print('\rEpisode {}\tFrame {} \tAverage100 Score: {:.2f}'.format(i_episode * worker, frame * worker,
                                                                              np.mean(scores_window)), end="")
@@ -372,8 +372,8 @@ if __name__ == "__main__":
    # envs.close()
     timer(t0, t1)
     # save trained model 
-    torch.save(agent.actor_local.state_dict(), 'runs/evaluating_2016_2019_actor_tau03_' + args.info + ".pth")
-    torch.save(agent.critic_local.state_dict(), 'runs/evaluating_2016_2019_critic_tau03_' + args.info + ".pth")
+    torch.save(agent.actor_local.state_dict(), 'runs/evaluating_2016_2019_actor_tau1_' + args.info + ".pth")
+    torch.save(agent.critic_local.state_dict(), 'runs/evaluating_2016_2019_critic_tau1_' + args.info + ".pth")
     # save parameter
     with open('runs/' + args.info + ".json", 'w') as f:
         json.dump(args.__dict__, f, indent=2)
