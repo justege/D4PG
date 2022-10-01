@@ -132,10 +132,48 @@ def preprocess_data():
     df_final.fillna(method='bfill', inplace=True)
     return df_final
 
+def evaluate(frame, eval_runs=5, capture=True, render=False):
+    """
+    Makes an evaluation run
+    """
+
+    reward_batch = []
+
+    all_scores = []
+    for i in range(eval_runs):
+        state = eval_env.reset()
+        if render: eval_env.render()
+        rewards = 0
+        score = 0
+        scores = []
+        states = []
+        actions = []
+        while True:
+            action = agent.act(np.expand_dims(state, axis=0))
+            action_v = np.clip(action, action_low, action_high)
+
+            state, reward, done, amnt_penalty = eval_env.step(action_v[0])
+            rewards += reward
+            score += reward
+            scores.append(np.mean(score))
+            states.append(states)
+            actions.append(action_v)
+            if done:
+                break
+        reward_batch.append(rewards)
+        if capture == True:
+            all_scores.append(np.mean(scores))
+            df = pd.DataFrame(list(zip(scores, state, actions)))
+            #print('mean of scores:{}'.format(np.mean(scores)))
+            df.to_csv('results_128_eval.csv', mode='a', encoding='utf-8', index=False)
+            writer.add_scalar("Reward", np.mean(reward_batch), frame)
+            #print(reward_batch)
+    df_scores = pd.DataFrame(all_scores)
+    df_scores.to_csv('results_128_eval_mean.csv', mode='a', encoding='utf-8', index=False)
+    print('mean of scores:{}'.format(np.mean(df_scores)))
+
 
 # The algorithms require a vectorized environment to run
-
-
 def timer(start, end):
     """ Helper to print training time """
     hours, rem = divmod(end - start, 3600)
@@ -143,7 +181,7 @@ def timer(start, end):
     print("\nTraining Time:  {:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds))
 
 
-def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
+def run(frames=1000, eval_every=10000, eval_runs=5, worker=1):
     """Deep Q-Learning.
 
     Params
@@ -166,12 +204,13 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
     scores = []
     minmax_scores = []
     average_100_scores = []
+    episodes = []
     time_stamp = 0
     for frame in range(1, frames + 1):
         # evaluation runs
 
-        #if frame %  == 0 or frame == 1:
-        #    print(frame)
+        if frame % eval_every == 0 or frame == 550:
+            evaluate(frame*worker, eval_runs)
 
 
         action = agent.act(state)
@@ -192,13 +231,14 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
         scores.append(np.mean(score))
         minmax_scores.append((np.min(score), np.max(score)))
         average_100_scores.append(np.mean(scores_deque))
+        episodes.append(i_episode)
 
-        if i_episode % 25 == 0:
-            df = pd.DataFrame(list(zip(average_100_scores, scores_deque, amount_penalty, state, action_v)))
-            df.to_csv('results.csv', mode='a', encoding='utf-8', index=False)
-            torch.save(agent.actor_local.state_dict(), "runs/checkpoint_actor" + str(i_episode) + ".pth")
-            torch.save(agent.critic_local.state_dict(), "runs/checkpoint_critic" + str(i_episode) + ".pth")
-        if i_episode % 25 == 0:
+        if i_episode % 10 == 0:
+            df = pd.DataFrame(list(zip(episodes,average_100_scores, scores_deque, amount_penalty, state, action_v)))
+            df.to_csv('results_128_2016_2019.csv', mode='a', encoding='utf-8', index=False)
+            torch.save(agent.actor_local.state_dict(), "runs/checkpoint_actor_128_2016_2019_" + str(i_episode) + ".pth")
+            torch.save(agent.critic_local.state_dict(), "runs/checkpoint_critic_128_2016_2019_" + str(i_episode) + ".pth")
+        if i_episode % 10 == 0:
             print('\rEpisode {}\tFrame {} \tAverage100 Score: {:.2f}'.format(i_episode * worker, frame * worker,
                                                                              np.mean(scores_window)), end="")
 
@@ -246,7 +286,7 @@ parser.add_argument("-lr_c", type=float, default=3e-4,
                     help="Critic learning rate of adapting the network weights, default is 3e-4")
 parser.add_argument("-learn_every", type=int, default=1, help="Learn every x interactions, default = 1")
 parser.add_argument("-learn_number", type=int, default=1, help="Learn x times per interaction, default = 1")
-parser.add_argument("-layer_size", type=int, default=256,
+parser.add_argument("-layer_size", type=int, default=128,
                     help="Number of nodes per neural network layer, default is 256")
 parser.add_argument("-repm", "--replay_memory", type=int, default=int(1e6),
                     help="Size of the Replay memory, default is 1e6")
@@ -269,10 +309,11 @@ if __name__ == "__main__":
     if os.path.exists(preprocessed_path):
         data = pd.read_csv(preprocessed_path, index_col=0)
 
-    unique_trade_date = data[(data.datadate > 20181001) & (data.datadate <= 20200101)].datadate.unique()
+    unique_trade_date = data[(data.datadate > 20151001) & (data.datadate <= 20200808)].datadate.unique()
     # print(unique_trade_date)
 
-    train = data_split(data, start=20180101, end=20200101)
+    train = data_split(data, start=20160101, end=20190101)
+    test_d = data_split(data, start=20190101, end=20200101)
 
     env_name = args.env
     seed = args.seed
@@ -293,9 +334,9 @@ if __name__ == "__main__":
     #envs = DummyVecEnv([lambda: StockEnvTrain(train)])
     #envs = MultiPro.SubprocVecEnv([lambda: gym.make(args.env) for i in range(args.worker)])
     envs = MultiPro.SubprocVecEnv([lambda: StockEnvTrain(train) for i in range(args.worker)])
-    # eval_env = gym.make(StockTradingEnv(df))
+    eval_env = StockEnvTrain(test_d)
     envs.seed(seed)
-    # eval_env.seed(seed+1)
+    eval_env.seed(seed+1)
     torch.manual_seed(seed)
     np.random.seed(seed)
     if args.device == "gpu" and torch.cuda.is_available():
@@ -318,8 +359,9 @@ if __name__ == "__main__":
 
     t0 = time.time()
     if saved_model != None:
-        agent.actor_local.load_state_dict(torch.load(saved_model))
-        # evaluate(frame=None, capture=False)
+        agent.actor_local.load_state_dict(torch.load('runs/checkpoint_actor_128100.pth'))
+        agent.critic_local.load_state_dict(torch.load('runs/checkpoint_critic_128100.pth'))
+        evaluate(frame=500, capture=True)
     else:
         run(frames=args.frames // args.worker,
             eval_every=args.eval_every // args.worker,
@@ -327,10 +369,11 @@ if __name__ == "__main__":
             worker=args.worker)
 
     t1 = time.time()
-    envs.close()
+   # envs.close()
     timer(t0, t1)
     # save trained model 
-    torch.save(agent.actor_local.state_dict(), 'runs/' + args.info + ".pth")
+    torch.save(agent.actor_local.state_dict(), 'runs/evaluating_2016_2019_actor' + args.info + ".pth")
+    torch.save(agent.critic_local.state_dict(), 'runs/evaluating_2016_2019_critic' + args.info + ".pth")
     # save parameter
     with open('runs/' + args.info + ".json", 'w') as f:
         json.dump(args.__dict__, f, indent=2)
