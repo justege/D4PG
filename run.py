@@ -136,7 +136,7 @@ def evaluate(frame, eval_runs=5, capture=True, render=False):
     """
     Makes an evaluation run
     """
-
+    print("------------------------------------------EVALUATING---------------------------------------------------")
     reward_batch = []
 
     all_scores = []
@@ -269,7 +269,7 @@ parser.add_argument("-munchausen", type=int, default=0, choices=[0, 1],
                     help="Adding Munchausen RL to the agent if set to 1, default = 0")
 parser.add_argument("-iqn", type=int, choices=[0, 1], default=1,
                     help="Use distributional IQN Critic if set to 1, default = 1")
-parser.add_argument("-noise", type=str, choices=["ou", "gauss"], default="OU",
+parser.add_argument("-noise", type=str, choices=["ou", "gauss"], default="gauss",
                     help="Choose noise type: ou = OU-Noise, gauss = Gaussian noise, default ou")
 parser.add_argument("-info", type=str, default="runsfirst", help="Information or name of the run")
 parser.add_argument("-d2rl", type=int, choices=[0, 1], default=0,
@@ -312,7 +312,7 @@ if __name__ == "__main__":
     unique_trade_date = data[(data.datadate > 20151001) & (data.datadate <= 20200808)].datadate.unique()
     # print(unique_trade_date)
 
-    train = data_split(data, start=20160101, end=20190101)
+    train = data_split(data, start=20170101, end=20190101)
     test_d = data_split(data, start=20190101, end=20200101)
 
     env_name = args.env
