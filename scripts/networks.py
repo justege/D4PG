@@ -135,14 +135,15 @@ class IQN(nn.Module):
         cos, taus = self.calc_cos(batch_size, num_tau) # cos shape (batch, num_tau, layer_size)
 
         #print(f"taus: {taus}")
-        #taus = taus*0.3
+        taus = taus*0.4
 
         cos = cos.view(batch_size*num_tau, self.n_cos)
         cos_x = torch.relu(self.cos_embedding(cos)).view(batch_size, num_tau, self.layer_size) # (batch, n_tau, layer)
         
         # x has shape (batch, layer_size) for multiplication –> reshape to (batch, 1, layer)
         x = (x.unsqueeze(1)*cos_x).view(batch_size*num_tau, self.layer_size)  #batch_size*num_tau, self.cos_layer_out
-        # Following reshape and transpose is done to bring the action in the same shape as batch*tau:
+        # Following reshape and
+        # transpose is done to bring the action in the same shape as batch*tau:
         # first 32 entries are tau for each action -> thats why each action one needs to be repeated 32 times 
         # x = [[tau1   action = [[a1
         #       tau1              a1   

@@ -13,6 +13,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from scripts import MultiPro
 import json
 from scripts.environment import StockEnvTrain
+from scripts.test_env import StockEnvTest
 
 import pandas as pd
 
@@ -181,7 +182,7 @@ def timer(start, end):
     print("\nTraining Time:  {:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds))
 
 
-def run(frames=1000, eval_every=10000, eval_runs=5, worker=1):
+def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
     """Deep Q-Learning.
 
     Params
@@ -233,12 +234,12 @@ def run(frames=1000, eval_every=10000, eval_runs=5, worker=1):
         average_100_scores.append(np.mean(scores_deque))
         episodes.append(i_episode)
 
-        if i_episode % 10 == 0:
+        if i_episode % 5 == 0:
             df = pd.DataFrame(list(zip(episodes,average_100_scores, scores_deque, amount_penalty, state, action_v)))
-            df.to_csv('results_128_2016_2019_tau1_.csv', mode='a', encoding='utf-8', index=False)
-            torch.save(agent.actor_local.state_dict(), "runs/checkpoint_actor_128_2016_2019_tau1_" + str(i_episode) + ".pth")
-            torch.save(agent.critic_local.state_dict(), "runs/checkpoint_critic_128_2016_2019_tau1_" + str(i_episode) + ".pth")
-        if i_episode % 10 == 0:
+            df.to_csv('results_256_2016_2019_tau04_.csv', mode='a', encoding='utf-8', index=False)
+            torch.save(agent.actor_local.state_dict(), "runs/checkpoint_actor_256_2016_2019_tau04_" + str(i_episode) + ".pth")
+            torch.save(agent.critic_local.state_dict(), "runs/checkpoint_critic_256_2016_2019_tau04_" + str(i_episode) + ".pth")
+        if i_episode % 5 == 0:
             print('\rEpisode {}\tFrame {} \tAverage100 Score: {:.2f}'.format(i_episode * worker, frame * worker,
                                                                              np.mean(scores_window)), end="")
 
@@ -274,19 +275,19 @@ parser.add_argument("-noise", type=str, choices=["ou", "gauss"], default="gauss"
 parser.add_argument("-info", type=str, default="runsfirst", help="Information or name of the run")
 parser.add_argument("-d2rl", type=int, choices=[0, 1], default=0,
                     help="Uses Deep Actor and Deep Critic Networks if set to 1 as described in the D2RL Paper: https://arxiv.org/pdf/2010.09163.pdf, default=0")
-parser.add_argument("-frames", type=int, default=100000,
+parser.add_argument("-frames", type=int, default=200000,
                     help="The amount of training interactions with the environment, default is 1mio")
-parser.add_argument("-eval_every", type=int, default=10000,
+parser.add_argument("-eval_every", type=int, default=1000,
                     help="Number of interactions after which the evaluation runs are performed, default = 10000")
 parser.add_argument("-eval_runs", type=int, default=1, help="Number of evaluation runs performed, default = 1")
-parser.add_argument("-seed", type=int, default=0, help="Seed for the env and torch network weights, default is 0")
+parser.add_argument("-seed", type=int, default=3, help="Seed for the env and torch network weights, default is 0")
 parser.add_argument("-lr_a", type=float, default=3e-4,
                     help="Actor learning rate of adapting the network weights, default is 3e-4")
 parser.add_argument("-lr_c", type=float, default=3e-4,
                     help="Critic learning rate of adapting the network weights, default is 3e-4")
 parser.add_argument("-learn_every", type=int, default=1, help="Learn every x interactions, default = 1")
 parser.add_argument("-learn_number", type=int, default=1, help="Learn x times per interaction, default = 1")
-parser.add_argument("-layer_size", type=int, default=128,
+parser.add_argument("-layer_size", type=int, default=256,
                     help="Number of nodes per neural network layer, default is 256")
 parser.add_argument("-repm", "--replay_memory", type=int, default=int(1e6),
                     help="Size of the Replay memory, default is 1e6")
@@ -334,7 +335,7 @@ if __name__ == "__main__":
     #envs = DummyVecEnv([lambda: StockEnvTrain(train)])
     #envs = MultiPro.SubprocVecEnv([lambda: gym.make(args.env) for i in range(args.worker)])
     envs = MultiPro.SubprocVecEnv([lambda: StockEnvTrain(train) for i in range(args.worker)])
-    eval_env = StockEnvTrain(test_d)
+    eval_env = StockEnvTest(test_d)
     envs.seed(seed)
     eval_env.seed(seed+1)
     torch.manual_seed(seed)
@@ -372,8 +373,8 @@ if __name__ == "__main__":
    # envs.close()
     timer(t0, t1)
     # save trained model 
-    torch.save(agent.actor_local.state_dict(), 'runs/evaluating_2016_2019_actor_tau1_' + args.info + ".pth")
-    torch.save(agent.critic_local.state_dict(), 'runs/evaluating_2016_2019_critic_tau1_' + args.info + ".pth")
+    torch.save(agent.actor_local.state_dict(), 'runs/evaluating_2016_2019_actor_tau04_' + args.info + ".pth")
+    torch.save(agent.critic_local.state_dict(), 'runs/evaluating_2016_2019_critic_tau04_' + args.info + ".pth")
     # save parameter
     with open('runs/' + args.info + ".json", 'w') as f:
         json.dump(args.__dict__, f, indent=2)
