@@ -17,7 +17,7 @@ import pickle
 # 100 shares per trade
 HMAX_NORMALIZE = 10
 # initial amount of money we have in our account
-INITIAL_ACCOUNT_BALANCE = 1000
+INITIAL_ACCOUNT_BALANCE = 10000
 # total number of stocks in our portfolio
 STOCK_DIM = 5
 # transaction fee: 1/1000 reasonable percentage
@@ -75,11 +75,20 @@ class StockEnvTest(gym.Env):
         # print('selling:{}'.format(action))
         # perform sell action based on the sign of the action
         if self.state[index+STOCK_DIM+1] > 0:
+
+            oldstate = self.state[index+STOCK_DIM+1]
+
             #update balance
             self.state[0] += \
             self.state[index+1]*min(abs(action),self.state[index+STOCK_DIM+1]) * \
              (1- TRANSACTION_FEE_PERCENT)
             self.state[index+STOCK_DIM+1] -= min(abs(action), self.state[index+STOCK_DIM+1])
+
+            if self.state[index+STOCK_DIM+1] < 0:
+                print('*----***----****-----*')
+                print(oldstate)
+                print(abs(action))
+
             self.cost +=self.state[index+1]*min(abs(action),self.state[index+STOCK_DIM+1]) * \
              TRANSACTION_FEE_PERCENT
             self.trades+=1
@@ -128,14 +137,14 @@ class StockEnvTest(gym.Env):
             # print("total_trades: ", self.trades)
             df_total_value.columns = ['account_value']
             df_total_value['daily_return'] = df_total_value.pct_change(1)
-            sharpe = (252 ** 0.5) * df_total_value['daily_return'].mean() / \
+            sharpe = (250 ** 0.5) * df_total_value['daily_return'].mean() / \
                      df_total_value['daily_return'].std()
             print("Sharpe: ", sharpe)
             # print("=================================")
             df_rewards = pd.DataFrame(self.rewards_memory)
             # df_rewards.to_csv('results/account_rewards_train.csv')
             df = pd.DataFrame([sharpe, end_total_asset, self.state, self.reward])
-            df.to_csv('results_test_256_2016_2019_tau04_.csv', mode='a', encoding='utf-8', index=False)
+            df.to_csv('CSVs/results_test_256_2016_2019_tau1_.csv', mode='a', encoding='utf-8', index=False)
             # print('total asset: {}'.format(self.state[0]+ sum(np.array(self.state[1:29])*np.array(self.state[29:]))))
             # with open('obs.pkl', 'wb') as f:
             #    pickle.dump(self.state, f)
@@ -164,8 +173,8 @@ class StockEnvTest(gym.Env):
             argsort_actions = np.argsort(actions)
             # print("The actions is: {}".format(actions))
 
-            sell_index = argsort_actions[:np.where(actions < 0.5)[0].shape[0]]
-            buy_index = argsort_actions[::-1][:np.where(actions > -0.5)[0].shape[0]]
+            sell_index = argsort_actions[:np.where(actions < 0)[0].shape[0]]
+            buy_index = argsort_actions[::-1][:np.where(actions > 0)[0].shape[0]]
 
             for index in sell_index:
                 # print('take sell action'.format(actions[index]))
@@ -205,7 +214,7 @@ class StockEnvTest(gym.Env):
             self.asset_memory.append(end_total_asset)
             # print("end_total_asset:{}".format(end_total_asset))
 
-            self.reward = end_total_asset - begin_total_asset - self.penalty
+            self.reward = end_total_asset - begin_total_asset
 
             # print("trades:{}".format(self.trades))
             # print('previous:{}'.format(self.previous_trades))

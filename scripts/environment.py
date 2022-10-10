@@ -83,8 +83,12 @@ class StockEnvTrain(gym.Env):
              (1- TRANSACTION_FEE_PERCENT)
 
             self.state[index+STOCK_DIM+1] -= min(abs(action), self.state[index+STOCK_DIM+1])
+
+
             self.cost +=self.state[index+1]*min(abs(action),self.state[index+STOCK_DIM+1]) * \
              TRANSACTION_FEE_PERCENT
+
+
             self.trades+=1
         else:
             pass
@@ -130,7 +134,7 @@ class StockEnvTrain(gym.Env):
             # print("total_trades: ", self.trades)
             df_total_value.columns = ['account_value']
             df_total_value['daily_return'] = df_total_value.pct_change(1)
-            sharpe = (252 ** 0.5) * df_total_value['daily_return'].mean() / \
+            sharpe = (250 ** 0.5) * df_total_value['daily_return'].mean() / \
                      df_total_value['daily_return'].std()
             print("Sharpe: ", sharpe)
             # print("=================================")
@@ -165,8 +169,8 @@ class StockEnvTrain(gym.Env):
             argsort_actions = np.argsort(actions)  # TODO: this may not be touched.
             # print("The actions is: {}".format(actions))
 
-            sell_index = argsort_actions[:np.where(actions < 0.5)[0].shape[0]]
-            buy_index = argsort_actions[::-1][:np.where(actions > -0.5)[0].shape[0]]
+            sell_index = argsort_actions[:np.where(actions < 0)[0].shape[0]]
+            buy_index = argsort_actions[::-1][:np.where(actions > 0)[0].shape[0]]
 
             for index in sell_index:
                 # print('take sell action'.format(actions[index]))
@@ -206,7 +210,7 @@ class StockEnvTrain(gym.Env):
             self.asset_memory.append(end_total_asset)
             # print("end_total_asset:{}".format(end_total_asset))
 
-            self.reward = end_total_asset - begin_total_asset - self.penalty
+            self.reward = end_total_asset - begin_total_asset
 
             # print("trades:{}".format(self.trades))
             # print('previous:{}'.format(self.previous_trades))

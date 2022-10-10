@@ -31,6 +31,10 @@ TRAINING_DATA_FILE = "dataprocessing/Yfinance_Data.csv"
 now = datetime.datetime.now()
 TRAINED_MODEL_DIR = f"trained_models/{now}"
 os.makedirs(TRAINED_MODEL_DIR)
+TAUVALUE = 1
+TIMEVALUE = 192021
+TAULAYER = 256
+
 
 TESTING_DATA_FILE = "test.csv"
 
@@ -66,30 +70,43 @@ def evaluate(frame, eval_runs=5, capture=True, render=False):
         rewards = 0
         score = 0
         scores = []
-        states = []
+        states6 = []
+        states7 = []
+        states8 = []
+        states9 = []
+        states10 = []
         actions = []
+        rewards_list = []
         while True:
             action = agent.act(np.expand_dims(state, axis=0))
             action_v = np.clip(action, action_low, action_high)
-
+            #print(eval_env.day)
             state, reward, done, amnt_penalty = eval_env.step(action_v[0])
             rewards += reward
             score += reward
             scores.append(np.mean(score))
-            states.append(states)
-            actions.append(action_v)
+            #states6.append(state[6])
+            #states7.append(state[7])
+            #states8.append(state[8])
+            #states9.append(state[9])
+            #states10.append(state[10])
+            #actions.append(action_v)
+            #rewards_list.append(reward)
             if done:
+                #print(eval_env.day)
+
+                reward_batch.append(rewards)
+                all_scores.append(np.mean(scores))
+                #df = pd.DataFrame(list(zip(scores, actions, states6, states7, states8, states9, states10, rewards_list)))
+                # print('mean of scores:{}'.format(np.mean(scores)))
+
+                #df.to_csv('CSVs/score_state_actions_' + str(TAULAYER) + '_' + str(TIMEVALUE) + '_tau' + str(TAUVALUE) + '_eval.csv', mode='a', encoding='utf-8', index=False)
                 break
-        reward_batch.append(rewards)
-        if capture == True:
-            all_scores.append(np.mean(scores))
-            df = pd.DataFrame(list(zip(scores, state, actions)))
-            #print('mean of scores:{}'.format(np.mean(scores)))
-            df.to_csv('results_128_eval.csv', mode='a', encoding='utf-8', index=False)
-            writer.add_scalar("Reward", np.mean(reward_batch), frame)
+
+        writer.add_scalar("Reward", np.mean(reward_batch), frame)
             #print(reward_batch)
-    df_scores = pd.DataFrame(all_scores)
-    df_scores.to_csv('results_128_eval_mean.csv', mode='a', encoding='utf-8', index=False)
+    df_scores = pd.DataFrame(reward_batch)
+    df_scores.to_csv('CSVs/results_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_eval_mean.csv', mode='a', encoding='utf-8', index=False)
     print('mean of scores:{}'.format(np.mean(df_scores)))
 
 
@@ -125,6 +142,10 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
     minmax_scores = []
     average_100_scores = []
     episodes = []
+    action_list = []
+    scores_list = []
+    states_list = []
+
     time_stamp = 0
     for frame in range(1, frames + 1):
         # evaluation runs
@@ -145,10 +166,8 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
         if args.icm:
             reward_i = agent.icm.get_intrinsic_reward(state[0], next_state[0], action[0])
             curiosity_logs.append((frame, reward_i))
-        state = next_state
-        score += reward
 
-        amount_penalty.append(amnt_penalty)
+        score += reward
         scores_deque.append(np.mean(score))
         scores.append(np.mean(score))
         minmax_scores.append((np.min(score), np.max(score)))
@@ -156,13 +175,18 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
         episodes.append(i_episode)
 
         if i_episode % 5 == 0:
-            df = pd.DataFrame(list(zip(episodes,average_100_scores, scores_deque, amount_penalty, state, action_v)))
-            df.to_csv('results_256_2016_2019_tau04_.csv', mode='a', encoding='utf-8', index=False)
-            torch.save(agent.actor_local.state_dict(), "runs/checkpoint_actor_256_2016_2019_tau04_" + str(i_episode) + ".pth")
-            torch.save(agent.critic_local.state_dict(), "runs/checkpoint_critic_256_2016_2019_tau04_" + str(i_episode) + ".pth")
-        if i_episode % 5 == 0:
+            action_list.append(action)
+            scores_list.append(reward)
+            states_list.append(state)
+
+            df = pd.DataFrame(list(zip(action_list,scores_list,)))
+            df.to_csv('results_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau_'+str(TAUVALUE)+'_.csv', mode='a', encoding='utf-8', index=False)
+            torch.save(agent.actor_local.state_dict(), 'runs/checkpoint_actor_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_' + str(i_episode) + ".pth")
+            torch.save(agent.critic_local.state_dict(), 'runs/checkpoint_critic_'+str(TAULAYER)+'6_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_' + str(i_episode) + ".pth")
+        if i_episode % 2 == 0:
             print('\rEpisode {}\tFrame {} \tAverage100 Score: {:.2f}'.format(i_episode * worker, frame * worker,
                                                                              np.mean(scores_window)), end="")
+        state = next_state
 
         if done.any():
             scores_window.append(score)  # save most recent score
@@ -208,7 +232,7 @@ parser.add_argument("-lr_c", type=float, default=3e-4,
                     help="Critic learning rate of adapting the network weights, default is 3e-4")
 parser.add_argument("-learn_every", type=int, default=1, help="Learn every x interactions, default = 1")
 parser.add_argument("-learn_number", type=int, default=1, help="Learn x times per interaction, default = 1")
-parser.add_argument("-layer_size", type=int, default=256,
+parser.add_argument("-layer_size", type=int, default=TAULAYER,
                     help="Number of nodes per neural network layer, default is 256")
 parser.add_argument("-repm", "--replay_memory", type=int, default=int(1e6),
                     help="Size of the Replay memory, default is 1e6")
@@ -236,9 +260,10 @@ if __name__ == "__main__":
     data = data[["datadate","tic","close","open","high","low","volume","macd","rsi","cci","adx"]]
     #print(data.to_string())
     train = data_split(data, start=20191009, end=20211009)
-    test_d = data_split(data, start=20190101, end=20221009)
+    test_d = data_split(data, start=20211010, end=20221009)
 
-
+    unique_trade_date = data[(data.datadate > 20211010)].datadate.unique()
+    print(len(unique_trade_date))
 
     env_name = args.env
     seed = args.seed
@@ -286,10 +311,10 @@ if __name__ == "__main__":
     if saved_model != None:
         for i in range(120,131,10):
             print("-------------------------------" + str(i) + "----------------------------")
-            agent.actor_local.load_state_dict(torch.load('runs/checkpoint_actor_128_2016_2019_tau1_'+str(i)+'.pth'))
-            agent.critic_local.load_state_dict(torch.load('runs/checkpoint_critic_128_2016_2019_tau1_'+str(i)+'.pth'))
+            agent.actor_local.load_state_dict(torch.load('runs/checkpoint_actor_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_'+str(i)+'.pth'))
+            agent.critic_local.load_state_dict(torch.load('runs/checkpoint_critic_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_'+str(i)+'.pth'))
 
-            evaluate(frame=500, capture=True)
+            evaluate(frame=int(len(unique_trade_date))*worker, capture=True)
     else:
         run(frames=args.frames // args.worker,
             eval_every=args.eval_every // args.worker,
@@ -300,8 +325,8 @@ if __name__ == "__main__":
    # envs.close()
     timer(t0, t1)
     # save trained model 
-    torch.save(agent.actor_local.state_dict(), 'runs/evaluating_2016_2019_actor_tau04_' + args.info + ".pth")
-    torch.save(agent.critic_local.state_dict(), 'runs/evaluating_2016_2019_critic_tau04_' + args.info + ".pth")
+    torch.save(agent.actor_local.state_dict(), 'runs/evaluating_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_actor_tau?'+str(TAUVALUE)+'_' + args.info + ".pth")
+    torch.save(agent.critic_local.state_dict(), 'runs/evaluating_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_critic_tau?'+str(TAUVALUE)+'_' + args.info + ".pth")
     # save parameter
     with open('runs/' + args.info + ".json", 'w') as f:
         json.dump(args.__dict__, f, indent=2)
