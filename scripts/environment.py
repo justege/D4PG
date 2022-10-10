@@ -17,9 +17,9 @@ import pickle
 # 100 shares per trade
 HMAX_NORMALIZE = 10
 # initial amount of money we have in our account
-INITIAL_ACCOUNT_BALANCE = 1000
+INITIAL_ACCOUNT_BALANCE = 10000
 # total number of stocks in our portfolio
-STOCK_DIM = 3
+STOCK_DIM = 5
 # transaction fee: 1/1000 reasonable percentage
 TRANSACTION_FEE_PERCENT = 0.001
 REWARD_SCALING = 1e-4
@@ -41,7 +41,7 @@ class StockEnvTrain(gym.Env):
         self.action_space = spaces.Box(low=-1, high=1, shape=(STOCK_DIM,))
         # Shape = 181: [Current Balance]+[prices 1-30]+[owned shares 1-30]
         # +[macd 1-30]+ [rsi 1-30] + [cci 1-30] + [adx 1-30]
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(19,))
+        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(31,))
         # load data from a pandas dataframe
         # print('df: {}'.format(self.df))
         # print('day: {}'.format(self.day))
@@ -51,13 +51,15 @@ class StockEnvTrain(gym.Env):
 
         # initalize state
         self.state = [INITIAL_ACCOUNT_BALANCE] + \
-                      self.data.Close.values.tolist() + \
+                      self.data.close.values.tolist() + \
                       [0]*STOCK_DIM + \
                       self.data.macd.values.tolist() + \
                       self.data.rsi.values.tolist() + \
                       self.data.cci.values.tolist() + \
                       self.data.adx.values.tolist()
         # initialize reward
+        # initialize reward
+        #print("stock_shares:{}".format(len(self.state)))
         self.reward = 0
         self.cost = 0
         # memorize all the total balance change
@@ -179,7 +181,7 @@ class StockEnvTrain(gym.Env):
 
             if self.previous_trades == self.trades:
                 self.amount_penalty = +1
-                self.penalty = 10
+                self.penalty = 0
                 # self.reward = -1
             else:
                 self.penalty = 0
@@ -188,9 +190,9 @@ class StockEnvTrain(gym.Env):
             self.previous_trades = float(self.trades)
 
             # load next state
-            # print("stock_shares:{}".format(self.state[29:]))
+
             self.state =  [self.state[0]] + \
-                self.data.Close.values.tolist() + \
+                self.data.close.values.tolist() + \
                 list(self.state[(STOCK_DIM+1):(STOCK_DIM*2+1)]) + \
                 self.data.macd.values.tolist() + \
                 self.data.rsi.values.tolist() + \
@@ -236,7 +238,7 @@ class StockEnvTrain(gym.Env):
         self.agent_stock_iteration_index = 0
         # initiate state
         self.state = [INITIAL_ACCOUNT_BALANCE] + \
-                      self.data.Close.values.tolist() + \
+                      self.data.close.values.tolist() + \
                       [0]*STOCK_DIM + \
                       self.data.macd.values.tolist() + \
                       self.data.rsi.values.tolist() + \

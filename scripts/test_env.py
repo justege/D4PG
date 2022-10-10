@@ -19,7 +19,7 @@ HMAX_NORMALIZE = 10
 # initial amount of money we have in our account
 INITIAL_ACCOUNT_BALANCE = 1000
 # total number of stocks in our portfolio
-STOCK_DIM = 3
+STOCK_DIM = 5
 # transaction fee: 1/1000 reasonable percentage
 TRANSACTION_FEE_PERCENT = 0.001
 REWARD_SCALING = 1e-4
@@ -41,7 +41,7 @@ class StockEnvTest(gym.Env):
         self.action_space = spaces.Box(low=-1, high=1, shape=(STOCK_DIM,))
         # Shape = 181: [Current Balance]+[prices 1-30]+[owned shares 1-30]
         # +[macd 1-30]+ [rsi 1-30] + [cci 1-30] + [adx 1-30]
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(19,))
+        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(31,))
         # load data from a pandas dataframe
         # print('df: {}'.format(self.df))
         # print('day: {}'.format(self.day))
@@ -51,7 +51,7 @@ class StockEnvTest(gym.Env):
 
         # initalize state
         self.state = [INITIAL_ACCOUNT_BALANCE] + \
-                      self.data.Close.values.tolist() + \
+                      self.data.close.values.tolist() + \
                       [0]*STOCK_DIM + \
                       self.data.macd.values.tolist() + \
                       self.data.rsi.values.tolist() + \
@@ -79,7 +79,6 @@ class StockEnvTest(gym.Env):
             self.state[0] += \
             self.state[index+1]*min(abs(action),self.state[index+STOCK_DIM+1]) * \
              (1- TRANSACTION_FEE_PERCENT)
-
             self.state[index+STOCK_DIM+1] -= min(abs(action), self.state[index+STOCK_DIM+1])
             self.cost +=self.state[index+1]*min(abs(action),self.state[index+STOCK_DIM+1]) * \
              TRANSACTION_FEE_PERCENT
@@ -114,6 +113,7 @@ class StockEnvTest(gym.Env):
         # print(actions)
         self.actions = actions
         if self.terminal:
+
             print("Finished")
             print(self.state)
             end_total_asset = self.state[0] + \
@@ -191,7 +191,7 @@ class StockEnvTest(gym.Env):
             # load next state
             # print("stock_shares:{}".format(self.state[29:]))
             self.state =  [self.state[0]] + \
-                self.data.Close.values.tolist() + \
+                self.data.close.values.tolist() + \
                 list(self.state[(STOCK_DIM+1):(STOCK_DIM*2+1)]) + \
                 self.data.macd.values.tolist() + \
                 self.data.rsi.values.tolist() + \
@@ -237,7 +237,7 @@ class StockEnvTest(gym.Env):
         self.agent_stock_iteration_index = 0
         # initiate state
         self.state = [INITIAL_ACCOUNT_BALANCE] + \
-                      self.data.Close.values.tolist() + \
+                      self.data.close.values.tolist() + \
                       [0]*STOCK_DIM + \
                       self.data.macd.values.tolist() + \
                       self.data.rsi.values.tolist() + \
@@ -255,4 +255,3 @@ class StockEnvTest(gym.Env):
     def _seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
-

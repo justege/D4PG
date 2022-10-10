@@ -35,17 +35,6 @@ os.makedirs(TRAINED_MODEL_DIR)
 TESTING_DATA_FILE = "test.csv"
 
 
-def load_dataset(*, file_name: str) -> pd.DataFrame:
-    """
-    load csv dataset from path
-    :return: (df) pandas dataframe
-    """
-    # _data = pd.read_csv(f"{config.DATASET_DIR}/{file_name}")
-    _data = pd.read_csv(file_name)
-
-    return _data
-
-
 def data_split(df, start, end):
     """
     split the dataset into training or testing using date
@@ -61,77 +50,6 @@ def data_split(df, start, end):
     return data
 
 
-def calculate_price(df):
-    """
-    calcualte adjusted close price, open-high-low price and volume
-    :param data: (df) pandas dataframe
-    :return: (df) pandas dataframe
-    """
-    data = df.copy()
-
-    data = data[['Date', 'tic', 'Close', 'Open', 'High', 'Low', 'Volume', 'datadate']]
-    data = data.sort_values(['tic', 'datadate'], ignore_index=True)
-    return data
-
-
-def add_technical_indicator(df):
-    """
-    calcualte technical indicators
-    use stockstats package to add technical inidactors
-    :param data: (df) pandas dataframe
-    :return: (df) pandas dataframe
-    """
-    stock = Sdf.retype(df.copy())
-
-    # print(stock)
-
-    unique_ticker = stock.tic.unique()
-
-    macd = pd.DataFrame()
-    rsi = pd.DataFrame()
-    cci = pd.DataFrame()
-    dx = pd.DataFrame()
-
-    # temp = stock[stock.tic == unique_ticker[0]]['macd']
-    for i in range(len(unique_ticker)):
-        ## macd
-        temp_macd = stock[stock.tic == unique_ticker[i]]['macd']
-        temp_macd = pd.DataFrame(temp_macd)
-        macd = macd.append(temp_macd, ignore_index=True)
-        ## rsi
-        temp_rsi = stock[stock.tic == unique_ticker[i]]['rsi_30']
-        temp_rsi = pd.DataFrame(temp_rsi)
-        rsi = rsi.append(temp_rsi, ignore_index=True)
-        ## cci
-        temp_cci = stock[stock.tic == unique_ticker[i]]['cci_30']
-        temp_cci = pd.DataFrame(temp_cci)
-        cci = cci.append(temp_cci, ignore_index=True)
-        ## adx
-        temp_dx = stock[stock.tic == unique_ticker[i]]['dx_30']
-        temp_dx = pd.DataFrame(temp_dx)
-        dx = dx.append(temp_dx, ignore_index=True)
-
-    df['macd'] = macd
-    df['rsi'] = rsi
-    df['cci'] = cci
-    df['adx'] = dx
-
-    return df
-
-
-def preprocess_data():
-    """data preprocessing pipeline"""
-    start = datetime.datetime(2010, 12, 1)
-    df = load_dataset(file_name=TRAINING_DATA_FILE)
-    # get data after 2010
-    # df = df[df.Date >= start]
-    # calcualte adjusted price
-    df_preprocess = calculate_price(df)
-    # add technical indicators using stockstats
-    df_final = add_technical_indicator(df_preprocess)
-    # fill the missing values at the beginning
-    df_final.fillna(method='bfill', inplace=True)
-    return df_final
 
 def evaluate(frame, eval_runs=5, capture=True, render=False):
     """
@@ -143,6 +61,7 @@ def evaluate(frame, eval_runs=5, capture=True, render=False):
     all_scores = []
     for i in range(eval_runs):
         state = eval_env.reset()
+        #print(len(state))
         if render: eval_env.render()
         rewards = 0
         score = 0
@@ -210,9 +129,11 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
     for frame in range(1, frames + 1):
         # evaluation runs
 
-        if frame % eval_every == 0 or frame == 550:
+        if frame % eval_every == 0 :
+            print(frame)
             evaluate(frame*worker, eval_runs)
 
+        #print(frame)
 
         action = agent.act(state)
         action_v = np.clip(action, action_low, action_high)
@@ -277,7 +198,7 @@ parser.add_argument("-d2rl", type=int, choices=[0, 1], default=0,
                     help="Uses Deep Actor and Deep Critic Networks if set to 1 as described in the D2RL Paper: https://arxiv.org/pdf/2010.09163.pdf, default=0")
 parser.add_argument("-frames", type=int, default=200000,
                     help="The amount of training interactions with the environment, default is 1mio")
-parser.add_argument("-eval_every", type=int, default=1000,
+parser.add_argument("-eval_every", type=int, default=500,
                     help="Number of interactions after which the evaluation runs are performed, default = 10000")
 parser.add_argument("-eval_runs", type=int, default=1, help="Number of evaluation runs performed, default = 1")
 parser.add_argument("-seed", type=int, default=3, help="Seed for the env and torch network weights, default is 0")
@@ -306,15 +227,18 @@ args = parser.parse_args()
 
 if __name__ == "__main__":
 
-    preprocessed_path = "done_3stocks.csv"
+    preprocessed_path = "0000_test.csv"
     if os.path.exists(preprocessed_path):
         data = pd.read_csv(preprocessed_path, index_col=0)
 
-    unique_trade_date = data[(data.datadate > 20151001) & (data.datadate <= 20200808)].datadate.unique()
-    # print(unique_trade_date)
+    data = data.drop(columns=["datadate_full"])
 
-    train = data_split(data, start=20170101, end=20190101)
-    test_d = data_split(data, start=20190101, end=20200101)
+    data = data[["datadate","tic","close","open","high","low","volume","macd","rsi","cci","adx"]]
+    #print(data.to_string())
+    train = data_split(data, start=20191009, end=20211009)
+    test_d = data_split(data, start=20190101, end=20221009)
+
+
 
     env_name = args.env
     seed = args.seed
@@ -360,9 +284,12 @@ if __name__ == "__main__":
 
     t0 = time.time()
     if saved_model != None:
-        agent.actor_local.load_state_dict(torch.load('runs/checkpoint_actor_128100.pth'))
-        agent.critic_local.load_state_dict(torch.load('runs/checkpoint_critic_128100.pth'))
-        evaluate(frame=500, capture=True)
+        for i in range(120,131,10):
+            print("-------------------------------" + str(i) + "----------------------------")
+            agent.actor_local.load_state_dict(torch.load('runs/checkpoint_actor_128_2016_2019_tau1_'+str(i)+'.pth'))
+            agent.critic_local.load_state_dict(torch.load('runs/checkpoint_critic_128_2016_2019_tau1_'+str(i)+'.pth'))
+
+            evaluate(frame=500, capture=True)
     else:
         run(frames=args.frames // args.worker,
             eval_every=args.eval_every // args.worker,
