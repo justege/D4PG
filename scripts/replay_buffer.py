@@ -114,6 +114,7 @@ class PrioritizedReplay(object):
         next_state = np.expand_dims(next_state, 0)
         action = torch.from_numpy(action).unsqueeze(0)
 
+        #print('action from replay: {}'.format(action))
         # n_step calc
         self.n_step_buffer[self.iter_].append((state, action, reward, next_state, done))
         if len(self.n_step_buffer[self.iter_]) == self.n_step:

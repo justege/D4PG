@@ -17,7 +17,7 @@ import pickle
 # 100 shares per trade
 HMAX_NORMALIZE = 10
 # initial amount of money we have in our account
-INITIAL_ACCOUNT_BALANCE = 1000
+INITIAL_ACCOUNT_BALANCE = 10000
 # total number of stocks in our portfolio
 STOCK_DIM = 3
 # transaction fee: 1/1000 reasonable percentage

@@ -259,62 +259,50 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
             score = 0
             curiosity_logs = []
 
-
 parser = argparse.ArgumentParser(description="")
-parser.add_argument("-env", type=str, default="Pendulum-v0", help="Environment name, default = HalfCheetahBulletEnv-v0")
+parser.add_argument("-env", type=str,default="Pendulum-v1", help="Environment name, default = HalfCheetahBulletEnv-v0")
 parser.add_argument("--device", type=str, default="gpu", help="Select trainig device [gpu/cpu], default = gpu")
-parser.add_argument("-nstep", type=int, default=1, help="Nstep bootstrapping, default 1")
-parser.add_argument("-per", type=int, default=1, choices=[0, 1],
-                    help="Adding Priorizied Experience Replay to the agent if set to 1, default = 0")
-parser.add_argument("-munchausen", type=int, default=0, choices=[0, 1],
-                    help="Adding Munchausen RL to the agent if set to 1, default = 0")
-parser.add_argument("-iqn", type=int, choices=[0, 1], default=1,
-                    help="Use distributional IQN Critic if set to 1, default = 1")
-parser.add_argument("-noise", type=str, choices=["ou", "gauss"], default="gauss",
-                    help="Choose noise type: ou = OU-Noise, gauss = Gaussian noise, default ou")
-parser.add_argument("-info", type=str, default="runsfirst", help="Information or name of the run")
-parser.add_argument("-d2rl", type=int, choices=[0, 1], default=0,
-                    help="Uses Deep Actor and Deep Critic Networks if set to 1 as described in the D2RL Paper: https://arxiv.org/pdf/2010.09163.pdf, default=0")
-parser.add_argument("-frames", type=int, default=200000,
-                    help="The amount of training interactions with the environment, default is 1mio")
-parser.add_argument("-eval_every", type=int, default=1000,
-                    help="Number of interactions after which the evaluation runs are performed, default = 10000")
+parser.add_argument("-nstep", type=int, default=1, help ="Nstep bootstrapping, default 1")
+parser.add_argument("-per", type=int, default=0, choices=[0,1], help="Adding Priorizied Experience Replay to the agent if set to 1, default = 0")
+parser.add_argument("-munchausen", type=int, default=0, choices=[0,1], help="Adding Munchausen RL to the agent if set to 1, default = 0")
+parser.add_argument("-iqn", type=int, choices=[0,1], default=1, help="Use distributional IQN Critic if set to 1, default = 1")
+parser.add_argument("-noise", type=str, choices=["ou", "gauss"], default="OU", help="Choose noise type: ou = OU-Noise, gauss = Gaussian noise, default ou")
+parser.add_argument("-info", type=str, help="Information or name of the run", default='info')
+parser.add_argument("-d2rl", type=int, choices=[0,1], default=0, help="Uses Deep Actor and Deep Critic Networks if set to 1 as described in the D2RL Paper: https://arxiv.org/pdf/2010.09163.pdf, default=0")
+parser.add_argument("-frames", type=int, default=1_000_000, help="The amount of training interactions with the environment, default is 1mio")
+parser.add_argument("-eval_every", type=int, default=10000, help="Number of interactions after which the evaluation runs are performed, default = 10000")
 parser.add_argument("-eval_runs", type=int, default=1, help="Number of evaluation runs performed, default = 1")
-parser.add_argument("-seed", type=int, default=3, help="Seed for the env and torch network weights, default is 0")
-parser.add_argument("-lr_a", type=float, default=3e-4,
-                    help="Actor learning rate of adapting the network weights, default is 3e-4")
-parser.add_argument("-lr_c", type=float, default=3e-4,
-                    help="Critic learning rate of adapting the network weights, default is 3e-4")
+parser.add_argument("-seed", type=int, default=0, help="Seed for the env and torch network weights, default is 0")
+parser.add_argument("-lr_a", type=float, default=3e-4, help="Actor learning rate of adapting the network weights, default is 3e-4")
+parser.add_argument("-lr_c", type=float, default=3e-4, help="Critic learning rate of adapting the network weights, default is 3e-4")
 parser.add_argument("-learn_every", type=int, default=1, help="Learn every x interactions, default = 1")
 parser.add_argument("-learn_number", type=int, default=1, help="Learn x times per interaction, default = 1")
-parser.add_argument("-layer_size", type=int, default=256,
-                    help="Number of nodes per neural network layer, default is 256")
-parser.add_argument("-repm", "--replay_memory", type=int, default=int(1e6),
-                    help="Size of the Replay memory, default is 1e6")
+parser.add_argument("-layer_size", type=int, default=256, help="Number of nodes per neural network layer, default is 256")
+parser.add_argument("-repm", "--replay_memory", type=int, default=int(1e6), help="Size of the Replay memory, default is 1e6")
 parser.add_argument("-bs", "--batch_size", type=int, default=256, help="Batch size, default is 256")
-parser.add_argument("-t", "--tau", type=float, default=1e-3,
-                    help="Softupdate factor tau, default is 1e-3")  # for per 1e-2 for regular 1e-3 -> Pendulum!
+parser.add_argument("-t", "--tau", type=float, default=1e-3, help="Softupdate factor tau, default is 1e-3") #for per 1e-2 for regular 1e-3 -> Pendulum!
 parser.add_argument("-g", "--gamma", type=float, default=0.99, help="discount factor gamma, default is 0.99")
-parser.add_argument("-w", "--worker", type=int, default=2, help="Number of parallel environments, default = 1")
+parser.add_argument("-w", "--worker", type=int, default=1, help="Number of parallel environments, default = 1")
 parser.add_argument("--saved_model", type=str, default=None, help="Load a saved model to perform a test run!")
-parser.add_argument("--icm", type=int, default=0, choices=[0, 1],
-                    help="Using Intrinsic Curiosity Module, default=0 (NO!)")
-parser.add_argument("--add_ir", type=int, default=0, choices=[0, 1],
-                    help="Add intrisic reward to the extrinsic reward, default = 0 (NO!) ")
+parser.add_argument("--icm", type=int, default=0, choices=[0,1], help="Using Intrinsic Curiosity Module, default=0 (NO!)")
+parser.add_argument("--add_ir", type=int, default=0, choices=[0,1], help="Add intrisic reward to the extrinsic reward, default = 0 (NO!) ")
 
 args = parser.parse_args()
 
 if __name__ == "__main__":
 
-    preprocessed_path = "done_3stocks.csv"
+    preprocessed_path = "0001_test.csv"
     if os.path.exists(preprocessed_path):
         data = pd.read_csv(preprocessed_path, index_col=0)
 
-    unique_trade_date = data[(data.datadate > 20151001) & (data.datadate <= 20200808)].datadate.unique()
-    # print(unique_trade_date)
+    data = data.drop(columns=["datadate_full"])
 
-    train = data_split(data, start=20170101, end=20190101)
-    test_d = data_split(data, start=20190101, end=20200101)
+    data = data[["datadate","tic","Close","open","high","low","volume","macd","rsi","cci","adx"]]
+    #print(data.to_string())
+    train = data_split(data, start=20220501, end=20220701)
+    test_d = data_split(data, start=2022901, end=20221001)
+
+    unique_trade_date = data[(data.datadate > 20211010)].datadate.unique()
 
     env_name = args.env
     seed = args.seed
@@ -336,6 +324,8 @@ if __name__ == "__main__":
     #envs = MultiPro.SubprocVecEnv([lambda: gym.make(args.env) for i in range(args.worker)])
     envs = MultiPro.SubprocVecEnv([lambda: StockEnvTrain(train) for i in range(args.worker)])
     eval_env = StockEnvTest(test_d)
+    envs = MultiPro.SubprocVecEnv([lambda: gym.make(args.env) for i in range(args.worker)])
+    eval_env = gym.make(args.env)
     envs.seed(seed)
     eval_env.seed(seed+1)
     torch.manual_seed(seed)
@@ -372,7 +362,7 @@ if __name__ == "__main__":
     t1 = time.time()
    # envs.close()
     timer(t0, t1)
-    # save trained model 
+    # save trained model
     torch.save(agent.actor_local.state_dict(), 'runs/evaluating_2016_2019_actor_tau04_' + args.info + ".pth")
     torch.save(agent.critic_local.state_dict(), 'runs/evaluating_2016_2019_critic_tau04_' + args.info + ".pth")
     # save parameter

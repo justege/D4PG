@@ -15,9 +15,9 @@ import pickle
 
 # shares normalization factor
 # 100 shares per trade
-HMAX_NORMALIZE = 10
+HMAX_NORMALIZE = 1
 # initial amount of money we have in our account
-INITIAL_ACCOUNT_BALANCE = 1000
+INITIAL_ACCOUNT_BALANCE = 10000
 # total number of stocks in our portfolio
 STOCK_DIM = 3
 # transaction fee: 1/1000 reasonable percentage
@@ -84,8 +84,8 @@ class StockEnvTrain(gym.Env):
             self.cost +=self.state[index+1]*min(abs(action),self.state[index+STOCK_DIM+1]) * \
              TRANSACTION_FEE_PERCENT
             self.trades+=1
-        else:
-            pass
+        #else:
+            #self.penalty =  self.penalty + 10
 
     def _buy_stock(self, index, action):
         # print('index:{}'.format(index))
@@ -95,17 +95,19 @@ class StockEnvTrain(gym.Env):
         available_amount = self.state[0] // self.state[index + 1]
         # print('available_amount:{}'.format(available_amount))
 
-        # update balance
-        self.state[0] -= self.state[index + 1] * min(available_amount, action) * \
-                         (1 + TRANSACTION_FEE_PERCENT)
-
-        self.state[index + STOCK_DIM + 1] += min(available_amount, action)
-
-        self.cost += self.state[index + 1] * min(available_amount, action) * \
-                     TRANSACTION_FEE_PERCENT
-
         if available_amount > 0:
             self.trades += 1
+            # update balance
+            self.state[0] -= self.state[index + 1] * min(available_amount, action) * \
+                             (1 + TRANSACTION_FEE_PERCENT)
+
+            self.state[index + STOCK_DIM + 1] += min(available_amount, action)
+
+            self.cost += self.state[index + 1] * min(available_amount, action) * \
+                         TRANSACTION_FEE_PERCENT
+        #else:
+            # self.penalty =  self.penalty + 10
+
 
     def step(self, actions):
         # print(self.day)
@@ -153,6 +155,8 @@ class StockEnvTrain(gym.Env):
             # actions = (actions.astype(int))
             # print(actions)
             actions = actions * HMAX_NORMALIZE
+
+            #print(actions)
             # print('all-actions:{}'.format(actions))
 
             begin_total_asset = self.state[0] + \
@@ -180,9 +184,10 @@ class StockEnvTrain(gym.Env):
             if self.previous_trades == self.trades:
                 self.amount_penalty = +1
                 self.penalty = 10
-                # self.reward = -1
+                #self.reward = -1
             else:
                 self.penalty = 0
+
                 # self.reward = self.trades
 
             self.previous_trades = float(self.trades)
@@ -204,6 +209,8 @@ class StockEnvTrain(gym.Env):
             self.asset_memory.append(end_total_asset)
             # print("end_total_asset:{}".format(end_total_asset))
 
+            #print(self.penalty)
+
             self.reward = end_total_asset - begin_total_asset - self.penalty
 
             # print("trades:{}".format(self.trades))
@@ -214,7 +221,7 @@ class StockEnvTrain(gym.Env):
             self.rewards_memory.append(self.reward)
             # self.reward = self.reward*REWARD_SCALING
             # print("step_reward:{}".format(self.reward))
-
+            #print(self.reward)
             self.day += 1
             self.data = self.df.loc[self.day, :]
 

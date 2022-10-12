@@ -135,7 +135,7 @@ class IQN(nn.Module):
         cos, taus = self.calc_cos(batch_size, num_tau) # cos shape (batch, num_tau, layer_size)
 
         #print(f"taus: {taus}")
-        taus = taus*0.4
+        taus = taus
 
         cos = cos.view(batch_size*num_tau, self.n_cos)
         cos_x = torch.relu(self.cos_embedding(cos)).view(batch_size, num_tau, self.layer_size) # (batch, n_tau, layer)
@@ -161,7 +161,9 @@ class IQN(nn.Module):
     
     def get_qvalues(self, inputs, action):
         quantiles, _ = self.forward(inputs, action, self.N)
+        #print('quantiles:{}'.format(quantiles))
         actions = quantiles.mean(dim=1)
+        #print('actions:{}'.format(actions))
         return actions  
 
 
@@ -335,4 +337,5 @@ class DeepIQN(nn.Module):
     def get_qvalues(self, inputs, action):
         quantiles, _ = self.forward(inputs, action, self.N)
         actions = quantiles.mean(dim=1)
+
         return actions  
