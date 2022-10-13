@@ -58,6 +58,8 @@ class StockEnvTrain(gym.Env):
                       self.data.cci.values.tolist() + \
                       self.data.adx.values.tolist()
         # initialize reward
+        # initialize reward
+        #print("stock_shares:{}".format(len(self.state)))
         self.reward = 0
         self.cost = 0
         # memorize all the total balance change
@@ -81,11 +83,15 @@ class StockEnvTrain(gym.Env):
              (1- TRANSACTION_FEE_PERCENT)
 
             self.state[index+STOCK_DIM+1] -= min(abs(action), self.state[index+STOCK_DIM+1])
+
+
             self.cost +=self.state[index+1]*min(abs(action),self.state[index+STOCK_DIM+1]) * \
              TRANSACTION_FEE_PERCENT
+
+
             self.trades+=1
-        #else:
-            #self.penalty =  self.penalty + 10
+        else:
+            pass
 
     def _buy_stock(self, index, action):
         # print('index:{}'.format(index))
@@ -95,19 +101,17 @@ class StockEnvTrain(gym.Env):
         available_amount = self.state[0] // self.state[index + 1]
         # print('available_amount:{}'.format(available_amount))
 
+        # update balance
+        self.state[0] -= self.state[index + 1] * min(available_amount, action) * \
+                         (1 + TRANSACTION_FEE_PERCENT)
+
+        self.state[index + STOCK_DIM + 1] += min(available_amount, action)
+
+        self.cost += self.state[index + 1] * min(available_amount, action) * \
+                     TRANSACTION_FEE_PERCENT
+
         if available_amount > 0:
             self.trades += 1
-            # update balance
-            self.state[0] -= self.state[index + 1] * min(available_amount, action) * \
-                             (1 + TRANSACTION_FEE_PERCENT)
-
-            self.state[index + STOCK_DIM + 1] += min(available_amount, action)
-
-            self.cost += self.state[index + 1] * min(available_amount, action) * \
-                         TRANSACTION_FEE_PERCENT
-        #else:
-            # self.penalty =  self.penalty + 10
-
 
     def step(self, actions):
         # print(self.day)
@@ -130,7 +134,7 @@ class StockEnvTrain(gym.Env):
             # print("total_trades: ", self.trades)
             df_total_value.columns = ['account_value']
             df_total_value['daily_return'] = df_total_value.pct_change(1)
-            sharpe = (252 ** 0.5) * df_total_value['daily_return'].mean() / \
+            sharpe = (250 ** 0.5) * df_total_value['daily_return'].mean() / \
                      df_total_value['daily_return'].std()
             print("Sharpe: ", sharpe)
             # print("=================================")
@@ -155,8 +159,6 @@ class StockEnvTrain(gym.Env):
             # actions = (actions.astype(int))
             # print(actions)
             actions = actions * HMAX_NORMALIZE
-
-            #print(actions)
             # print('all-actions:{}'.format(actions))
 
             begin_total_asset = self.state[0] + \
@@ -167,8 +169,8 @@ class StockEnvTrain(gym.Env):
             argsort_actions = np.argsort(actions)  # TODO: this may not be touched.
             # print("The actions is: {}".format(actions))
 
-            sell_index = argsort_actions[:np.where(actions < 0.5)[0].shape[0]]
-            buy_index = argsort_actions[::-1][:np.where(actions > -0.5)[0].shape[0]]
+            sell_index = argsort_actions[:np.where(actions < 0)[0].shape[0]]
+            buy_index = argsort_actions[::-1][:np.where(actions > 0)[0].shape[0]]
 
             for index in sell_index:
                 # print('take sell action'.format(actions[index]))
@@ -183,17 +185,16 @@ class StockEnvTrain(gym.Env):
 
             if self.previous_trades == self.trades:
                 self.amount_penalty = +1
-                self.penalty = 10
-                #self.reward = -1
+                self.penalty =  self.penalty + 1
+                # self.reward = -1
             else:
-                self.penalty = 0
-
+                self.penalty = self.penalty - 100
                 # self.reward = self.trades
 
             self.previous_trades = float(self.trades)
 
             # load next state
-            # print("stock_shares:{}".format(self.state[29:]))
+
             self.state =  [self.state[0]] + \
                 self.data.Close.values.tolist() + \
                 list(self.state[(STOCK_DIM+1):(STOCK_DIM*2+1)]) + \
@@ -209,9 +210,7 @@ class StockEnvTrain(gym.Env):
             self.asset_memory.append(end_total_asset)
             # print("end_total_asset:{}".format(end_total_asset))
 
-            #print(self.penalty)
-
-            self.reward = end_total_asset - begin_total_asset - self.penalty
+            self.reward = self.penalty
 
             # print("trades:{}".format(self.trades))
             # print('previous:{}'.format(self.previous_trades))
@@ -221,7 +220,7 @@ class StockEnvTrain(gym.Env):
             self.rewards_memory.append(self.reward)
             # self.reward = self.reward*REWARD_SCALING
             # print("step_reward:{}".format(self.reward))
-            #print(self.reward)
+
             self.day += 1
             self.data = self.df.loc[self.day, :]
 
@@ -262,3 +261,4 @@ class StockEnvTrain(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
+print(StockEnvTrain.action_space)

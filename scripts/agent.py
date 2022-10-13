@@ -28,14 +28,14 @@ class Agent():
                       hidden_size,
                       BUFFER_SIZE = int(1e6),  # replay buffer size
                       BATCH_SIZE = 128,        # minibatch size
-                      GAMMA = 0.99,            # discount factor
+                      GAMMA = 0.7,            # discount factor
                       TAU = 1e-3,              # for soft update of target parameters
                       LR_ACTOR = 1e-4,         # learning rate of the actor 
                       LR_CRITIC = 1e-4,        # learning rate of the critic
                       WEIGHT_DECAY = 0,#1e-2        # L2 weight decay
                       LEARN_EVERY = 1,
                       LEARN_NUMBER = 1,
-                      EPSILON = 1.0,
+                      EPSILON = 1,
                       EPSILON_DECAY = 1,
                       device = "cuda",
                       frames = 100000,
@@ -73,7 +73,7 @@ class Agent():
         # munchausen values
         self.entropy_tau = 0.03
         self.lo = -1
-        self.alpha = 0.9
+        self.alpha = 0.004
         
         self.eta = torch.FloatTensor([.1]).to(device)
         
@@ -160,6 +160,8 @@ class Agent():
         """Returns actions for given state as per current policy."""
         state = torch.from_numpy(state).float().to(self.device)
 
+        print(state.shape, self.state_size)
+
         assert state.shape == (state.shape[0],self.state_size), "shape: {}".format(state.shape)
         self.actor_local.eval()
         with torch.no_grad():
@@ -175,7 +177,7 @@ class Agent():
                 action += self.epsilon * a
                 #print('random:{}'.format(self.epsilon *a))
 
-        #print('after random added{}'.format(action))
+        print('after random added{}'.format(action))
         return action #np.clip(action, -1, 1)
 
     def reset(self):
