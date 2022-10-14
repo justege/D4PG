@@ -81,6 +81,7 @@ def evaluate(frame, eval_runs=5, capture=True, render=False):
         rewards_list = []
         while True:
             action = agent.act(np.expand_dims(state, axis=0),add_noise=False)
+            print(action)
             action_v = np.clip(action, action_low, action_high)
             #print(eval_env.day)
             state, reward, done, amnt_penalty = eval_env.step(action_v[0])
@@ -97,7 +98,7 @@ def evaluate(frame, eval_runs=5, capture=True, render=False):
             #actions.append(action_v)
             #rewards_list.append(reward)
             if done:
-                all_scores.append(np.mean(reward_batch))
+                all_scores.append(np.mean(scores))
                 frame_list.append(frame)
                 run_number.append(i)
                 #print(eval_env.day)
@@ -148,7 +149,7 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
     action_list = []
     scores_list = []
     states_list = []
-
+    episode_list = []
     time_stamp = 0
     for frame in range(1, frames + 1):
         # evaluation runs
@@ -170,21 +171,26 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
             curiosity_logs.append((frame, reward_i))
 
         score += reward
-        scores_deque.append(np.mean(score))
+        scores_deque.append(score)
         scores.append(np.mean(score))
-        minmax_scores.append((np.min(score), np.max(score)))
+
         average_100_scores.append(np.mean(scores_deque))
-        episodes.append(i_episode)
 
         if i_episode % 5 == 0:
+            minmax_scores.append((np.min(scores_deque), np.max(scores_deque)))
+            episode_list.append(i_episode)
             action_list.append(action)
-            scores_list.append(reward)
-            states_list.append(state)
+            scores_list.append(np.mean(scores_deque))
+            states_list.append(score)
 
-            df = pd.DataFrame(list(zip(action_list,scores_list,)))
+            df = pd.DataFrame(list(zip(action_list,scores_list,states_list, episode_list,minmax_scores)))
             df.to_csv('results_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau_'+str(TAUVALUE)+'_.csv', mode='a', encoding='utf-8', index=False)
             torch.save(agent.actor_local.state_dict(), 'runs/checkpoint_actor_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_' + str(i_episode) + ".pth")
             torch.save(agent.critic_local.state_dict(), 'runs/checkpoint_critic_'+str(TAULAYER)+'6_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_' + str(i_episode) + ".pth")
+            action_list = []
+            scores_list = []
+            states_list = []
+            episode_list = []
         if i_episode % 2 == 0:
             print('\rEpisode {}\tFrame {} \tAverage100 Score: {:.2f}'.format(i_episode * worker, frame * worker,
                                                                              np.mean(scores_window)), end="")
@@ -226,7 +232,7 @@ parser.add_argument("-frames", type=int, default=200000,
                     help="The amount of training interactions with the environment, default is 1mio")
 parser.add_argument("-eval_every", type=int, default=500,
                     help="Number of interactions after which the evaluation runs are performed, default = 10000")
-parser.add_argument("-eval_runs", type=int, default=10, help="Number of evaluation runs performed, default = 1")
+parser.add_argument("-eval_runs", type=int, default=5, help="Number of evaluation runs performed, default = 1")
 parser.add_argument("-seed", type=int, default=3, help="Seed for the env and torch network weights, default is 0")
 parser.add_argument("-lr_a", type=float, default=3e-4,
                     help="Actor learning rate of adapting the network weights, default is 3e-4")

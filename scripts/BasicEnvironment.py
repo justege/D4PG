@@ -36,7 +36,6 @@ class BasicEnv(gym.Env):
         else:
             reward = -1
 
-        print(action)
         done = True
         info = {}
         return state, reward, done, info
