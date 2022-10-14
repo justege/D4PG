@@ -164,6 +164,7 @@ class Agent():
         self.actor_local.eval()
         with torch.no_grad():
                 action = self.actor_local(state).cpu().data.numpy()
+                print(action)
         self.actor_local.train()
         if add_noise:
             if self.noise_type == "ou":

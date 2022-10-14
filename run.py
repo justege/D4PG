@@ -31,19 +31,12 @@ TRAINING_DATA_FILE = "dataprocessing/Yfinance_Data.csv"
 now = datetime.datetime.now()
 TRAINED_MODEL_DIR = f"trained_models/{now}"
 os.makedirs(TRAINED_MODEL_DIR)
+TAUVALUE = 1
+TIMEVALUE = 192021
+TAULAYER = 256
+
 
 TESTING_DATA_FILE = "test.csv"
-
-
-def load_dataset(*, file_name: str) -> pd.DataFrame:
-    """
-    load csv dataset from path
-    :return: (df) pandas dataframe
-    """
-    # _data = pd.read_csv(f"{config.DATASET_DIR}/{file_name}")
-    _data = pd.read_csv(file_name)
-
-    return _data
 
 
 def data_split(df, start, end):
@@ -61,116 +54,63 @@ def data_split(df, start, end):
     return data
 
 
-def calculate_price(df):
-    """
-    calcualte adjusted close price, open-high-low price and volume
-    :param data: (df) pandas dataframe
-    :return: (df) pandas dataframe
-    """
-    data = df.copy()
-
-    data = data[['Date', 'tic', 'Close', 'Open', 'High', 'Low', 'Volume', 'datadate']]
-    data = data.sort_values(['tic', 'datadate'], ignore_index=True)
-    return data
-
-
-def add_technical_indicator(df):
-    """
-    calcualte technical indicators
-    use stockstats package to add technical inidactors
-    :param data: (df) pandas dataframe
-    :return: (df) pandas dataframe
-    """
-    stock = Sdf.retype(df.copy())
-
-    # print(stock)
-
-    unique_ticker = stock.tic.unique()
-
-    macd = pd.DataFrame()
-    rsi = pd.DataFrame()
-    cci = pd.DataFrame()
-    dx = pd.DataFrame()
-
-    # temp = stock[stock.tic == unique_ticker[0]]['macd']
-    for i in range(len(unique_ticker)):
-        ## macd
-        temp_macd = stock[stock.tic == unique_ticker[i]]['macd']
-        temp_macd = pd.DataFrame(temp_macd)
-        macd = macd.append(temp_macd, ignore_index=True)
-        ## rsi
-        temp_rsi = stock[stock.tic == unique_ticker[i]]['rsi_30']
-        temp_rsi = pd.DataFrame(temp_rsi)
-        rsi = rsi.append(temp_rsi, ignore_index=True)
-        ## cci
-        temp_cci = stock[stock.tic == unique_ticker[i]]['cci_30']
-        temp_cci = pd.DataFrame(temp_cci)
-        cci = cci.append(temp_cci, ignore_index=True)
-        ## adx
-        temp_dx = stock[stock.tic == unique_ticker[i]]['dx_30']
-        temp_dx = pd.DataFrame(temp_dx)
-        dx = dx.append(temp_dx, ignore_index=True)
-
-    df['macd'] = macd
-    df['rsi'] = rsi
-    df['cci'] = cci
-    df['adx'] = dx
-
-    return df
-
-
-def preprocess_data():
-    """data preprocessing pipeline"""
-    start = datetime.datetime(2010, 12, 1)
-    df = load_dataset(file_name=TRAINING_DATA_FILE)
-    # get data after 2010
-    # df = df[df.Date >= start]
-    # calcualte adjusted price
-    df_preprocess = calculate_price(df)
-    # add technical indicators using stockstats
-    df_final = add_technical_indicator(df_preprocess)
-    # fill the missing values at the beginning
-    df_final.fillna(method='bfill', inplace=True)
-    return df_final
 
 def evaluate(frame, eval_runs=5, capture=True, render=False):
     """
     Makes an evaluation run
     """
     print("------------------------------------------EVALUATING---------------------------------------------------")
+    print(frame)
     reward_batch = []
-
+    frame_list = []
     all_scores = []
+    run_number = []
     for i in range(eval_runs):
         state = eval_env.reset()
+        #print(len(state))
         if render: eval_env.render()
         rewards = 0
         score = 0
         scores = []
-        states = []
+        states6 = []
+        states7 = []
+        states8 = []
+        states9 = []
+        states10 = []
         actions = []
+        rewards_list = []
         while True:
-            action = agent.act(np.expand_dims(state, axis=0))
+            action = agent.act(np.expand_dims(state, axis=0),add_noise=False)
             action_v = np.clip(action, action_low, action_high)
-
+            #print(eval_env.day)
             state, reward, done, amnt_penalty = eval_env.step(action_v[0])
             rewards += reward
             score += reward
             scores.append(np.mean(score))
-            states.append(states)
-            actions.append(action_v)
+            reward_batch.append(rewards)
+
+            #states6.append(state[6])
+            #states7.append(state[7])
+            #states8.append(state[8])
+            #states9.append(state[9])
+            #states10.append(state[10])
+            #actions.append(action_v)
+            #rewards_list.append(reward)
             if done:
+                all_scores.append(np.mean(reward_batch))
+                frame_list.append(frame)
+                run_number.append(i)
+                #print(eval_env.day)
+                #df = pd.DataFrame(list(zip(scores, actions, states6, states7, states8, states9, states10, rewards_list)))
+                # print('mean of scores:{}'.format(np.mean(scores)))
+
+                #df.to_csv('CSVs/score_state_actions_' + str(TAULAYER) + '_' + str(TIMEVALUE) + '_tau' + str(TAUVALUE) + '_eval.csv', mode='a', encoding='utf-8', index=False)
                 break
-        reward_batch.append(rewards)
-        if capture == True:
-            all_scores.append(np.mean(scores))
-            df = pd.DataFrame(list(zip(scores, state, actions)))
-            #print('mean of scores:{}'.format(np.mean(scores)))
-            df.to_csv('results_128_eval.csv', mode='a', encoding='utf-8', index=False)
-            writer.add_scalar("Reward", np.mean(reward_batch), frame)
+        writer.add_scalar("Reward", np.mean(all_scores), frame)
             #print(reward_batch)
-    df_scores = pd.DataFrame(all_scores)
-    df_scores.to_csv('results_128_eval_mean.csv', mode='a', encoding='utf-8', index=False)
+
+    df_scores = pd.DataFrame(list(zip(all_scores, frame_list, run_number)))
+    df_scores.to_csv('CSVs/results_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_eval_mean.csv', mode='a', encoding='utf-8', index=True)
     print('mean of scores:{}'.format(np.mean(df_scores)))
 
 
@@ -184,7 +124,6 @@ def timer(start, end):
 
 def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
     """Deep Q-Learning.
-
     Params
     ======
         n_episodes (int): maximum number of training episodes
@@ -206,13 +145,18 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
     minmax_scores = []
     average_100_scores = []
     episodes = []
+    action_list = []
+    scores_list = []
+    states_list = []
+
     time_stamp = 0
     for frame in range(1, frames + 1):
         # evaluation runs
 
-        if frame % eval_every == 0 or frame == 550:
+        if frame % 100 == 0 :
             evaluate(frame*worker, eval_runs)
 
+        #print(frame)
 
         action = agent.act(state)
         action_v = np.clip(action, action_low, action_high)
@@ -224,10 +168,8 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
         if args.icm:
             reward_i = agent.icm.get_intrinsic_reward(state[0], next_state[0], action[0])
             curiosity_logs.append((frame, reward_i))
-        state = next_state
-        score += reward
 
-        amount_penalty.append(amnt_penalty)
+        score += reward
         scores_deque.append(np.mean(score))
         scores.append(np.mean(score))
         minmax_scores.append((np.min(score), np.max(score)))
@@ -235,13 +177,18 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
         episodes.append(i_episode)
 
         if i_episode % 5 == 0:
-            df = pd.DataFrame(list(zip(episodes,average_100_scores, scores_deque, amount_penalty, state, action_v)))
-            df.to_csv('results_256_2016_2019_tau04_.csv', mode='a', encoding='utf-8', index=False)
-            torch.save(agent.actor_local.state_dict(), "runs/checkpoint_actor_256_2016_2019_tau04_" + str(i_episode) + ".pth")
-            torch.save(agent.critic_local.state_dict(), "runs/checkpoint_critic_256_2016_2019_tau04_" + str(i_episode) + ".pth")
-        if i_episode % 5 == 0:
+            action_list.append(action)
+            scores_list.append(reward)
+            states_list.append(state)
+
+            df = pd.DataFrame(list(zip(action_list,scores_list,)))
+            df.to_csv('results_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau_'+str(TAUVALUE)+'_.csv', mode='a', encoding='utf-8', index=False)
+            torch.save(agent.actor_local.state_dict(), 'runs/checkpoint_actor_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_' + str(i_episode) + ".pth")
+            torch.save(agent.critic_local.state_dict(), 'runs/checkpoint_critic_'+str(TAULAYER)+'6_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_' + str(i_episode) + ".pth")
+        if i_episode % 2 == 0:
             print('\rEpisode {}\tFrame {} \tAverage100 Score: {:.2f}'.format(i_episode * worker, frame * worker,
                                                                              np.mean(scores_window)), end="")
+        state = next_state
 
         if done.any():
             scores_window.append(score)  # save most recent score
@@ -264,7 +211,7 @@ parser = argparse.ArgumentParser(description="")
 parser.add_argument("-env", type=str, default="Pendulum-v0", help="Environment name, default = HalfCheetahBulletEnv-v0")
 parser.add_argument("--device", type=str, default="gpu", help="Select trainig device [gpu/cpu], default = gpu")
 parser.add_argument("-nstep", type=int, default=1, help="Nstep bootstrapping, default 1")
-parser.add_argument("-per", type=int, default=1, choices=[0, 1],
+parser.add_argument("-per", type=int, default=0, choices=[0, 1],
                     help="Adding Priorizied Experience Replay to the agent if set to 1, default = 0")
 parser.add_argument("-munchausen", type=int, default=0, choices=[0, 1],
                     help="Adding Munchausen RL to the agent if set to 1, default = 0")
@@ -277,9 +224,9 @@ parser.add_argument("-d2rl", type=int, choices=[0, 1], default=0,
                     help="Uses Deep Actor and Deep Critic Networks if set to 1 as described in the D2RL Paper: https://arxiv.org/pdf/2010.09163.pdf, default=0")
 parser.add_argument("-frames", type=int, default=200000,
                     help="The amount of training interactions with the environment, default is 1mio")
-parser.add_argument("-eval_every", type=int, default=1000,
+parser.add_argument("-eval_every", type=int, default=500,
                     help="Number of interactions after which the evaluation runs are performed, default = 10000")
-parser.add_argument("-eval_runs", type=int, default=1, help="Number of evaluation runs performed, default = 1")
+parser.add_argument("-eval_runs", type=int, default=10, help="Number of evaluation runs performed, default = 1")
 parser.add_argument("-seed", type=int, default=3, help="Seed for the env and torch network weights, default is 0")
 parser.add_argument("-lr_a", type=float, default=3e-4,
                     help="Actor learning rate of adapting the network weights, default is 3e-4")
@@ -287,7 +234,7 @@ parser.add_argument("-lr_c", type=float, default=3e-4,
                     help="Critic learning rate of adapting the network weights, default is 3e-4")
 parser.add_argument("-learn_every", type=int, default=1, help="Learn every x interactions, default = 1")
 parser.add_argument("-learn_number", type=int, default=1, help="Learn x times per interaction, default = 1")
-parser.add_argument("-layer_size", type=int, default=256,
+parser.add_argument("-layer_size", type=int, default=TAULAYER,
                     help="Number of nodes per neural network layer, default is 256")
 parser.add_argument("-repm", "--replay_memory", type=int, default=int(1e6),
                     help="Size of the Replay memory, default is 1e6")
@@ -295,7 +242,7 @@ parser.add_argument("-bs", "--batch_size", type=int, default=256, help="Batch si
 parser.add_argument("-t", "--tau", type=float, default=1e-3,
                     help="Softupdate factor tau, default is 1e-3")  # for per 1e-2 for regular 1e-3 -> Pendulum!
 parser.add_argument("-g", "--gamma", type=float, default=0.99, help="discount factor gamma, default is 0.99")
-parser.add_argument("-w", "--worker", type=int, default=2, help="Number of parallel environments, default = 1")
+parser.add_argument("-w", "--worker", type=int, default=1, help="Number of parallel environments, default = 1")
 parser.add_argument("--saved_model", type=str, default=None, help="Load a saved model to perform a test run!")
 parser.add_argument("--icm", type=int, default=0, choices=[0, 1],
                     help="Using Intrinsic Curiosity Module, default=0 (NO!)")
@@ -303,18 +250,29 @@ parser.add_argument("--add_ir", type=int, default=0, choices=[0, 1],
                     help="Add intrisic reward to the extrinsic reward, default = 0 (NO!) ")
 
 args = parser.parse_args()
-
+from scripts.BasicEnvironment import BasicEnv
 if __name__ == "__main__":
 
-    preprocessed_path = "done_3stocks.csv"
+    preprocessed_path = "0001_test.csv"
     if os.path.exists(preprocessed_path):
         data = pd.read_csv(preprocessed_path, index_col=0)
 
-    unique_trade_date = data[(data.datadate > 20151001) & (data.datadate <= 20200808)].datadate.unique()
-    # print(unique_trade_date)
+    data = data.drop(columns=["datadate_full"])
 
-    train = data_split(data, start=20170101, end=20190101)
-    test_d = data_split(data, start=20190101, end=20200101)
+    data = data[["datadate","tic","Close","open","high","low","volume","macd","rsi","cci","adx"]]
+
+    data.Close = data.Close.apply(np.int64)
+    data.macd = data.macd.apply(np.int64)
+    data.rsi = data.rsi.apply(np.int64)
+    data.cci = data.cci.apply(np.int64)
+    data.adx = data.adx.apply(np.int64)
+
+    #print(data.to_string())
+    train = data_split(data, start=20210101, end=20220701)
+    test_d = data_split(data, start=20220701, end=20221001)
+
+    unique_trade_date = data[(data.datadate > 20211010)].datadate.unique()
+    print(len(unique_trade_date))
 
     env_name = args.env
     seed = args.seed
@@ -336,6 +294,9 @@ if __name__ == "__main__":
     #envs = MultiPro.SubprocVecEnv([lambda: gym.make(args.env) for i in range(args.worker)])
     envs = MultiPro.SubprocVecEnv([lambda: StockEnvTrain(train) for i in range(args.worker)])
     eval_env = StockEnvTest(test_d)
+
+    envs = MultiPro.SubprocVecEnv([lambda: BasicEnv() for i in range(args.worker)])
+    eval_env = BasicEnv()
     envs.seed(seed)
     eval_env.seed(seed+1)
     torch.manual_seed(seed)
@@ -360,9 +321,12 @@ if __name__ == "__main__":
 
     t0 = time.time()
     if saved_model != None:
-        agent.actor_local.load_state_dict(torch.load('runs/checkpoint_actor_128100.pth'))
-        agent.critic_local.load_state_dict(torch.load('runs/checkpoint_critic_128100.pth'))
-        evaluate(frame=500, capture=True)
+        for i in range(120,131,10):
+            print("-------------------------------" + str(i) + "----------------------------")
+            agent.actor_local.load_state_dict(torch.load('runs/checkpoint_actor_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_'+str(i)+'.pth'))
+            agent.critic_local.load_state_dict(torch.load('runs/checkpoint_critic_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_'+str(i)+'.pth'))
+
+            evaluate(frame=int(len(unique_trade_date))*worker, capture=True)
     else:
         run(frames=args.frames // args.worker,
             eval_every=args.eval_every // args.worker,
@@ -372,9 +336,10 @@ if __name__ == "__main__":
     t1 = time.time()
    # envs.close()
     timer(t0, t1)
-    # save trained model 
-    torch.save(agent.actor_local.state_dict(), 'runs/evaluating_2016_2019_actor_tau04_' + args.info + ".pth")
-    torch.save(agent.critic_local.state_dict(), 'runs/evaluating_2016_2019_critic_tau04_' + args.info + ".pth")
+    # save trained model
+    torch.save(agent.actor_local.state_dict(), 'runs/evaluating_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_actor_tau?'+str(TAUVALUE)+'_' + args.info + ".pth")
+    torch.save(agent.critic_local.state_dict(), 'runs/evaluating_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_critic_tau?'+str(TAUVALUE)+'_' + args.info + ".pth")
     # save parameter
     with open('runs/' + args.info + ".json", 'w') as f:
         json.dump(args.__dict__, f, indent=2)
+

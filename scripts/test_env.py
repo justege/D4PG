@@ -135,7 +135,7 @@ class StockEnvTest(gym.Env):
             df_rewards = pd.DataFrame(self.rewards_memory)
             # df_rewards.to_csv('results/account_rewards_train.csv')
             df = pd.DataFrame([sharpe, end_total_asset, self.state, self.reward])
-            df.to_csv('results_test_256_2016_2019_tau04_.csv', mode='a', encoding='utf-8', index=False)
+            df.to_csv('results_test_256_2020_2012_tau1_.csv', mode='a', encoding='utf-8', index=False)
             # print('total asset: {}'.format(self.state[0]+ sum(np.array(self.state[1:29])*np.array(self.state[29:]))))
             # with open('obs.pkl', 'wb') as f:
             #    pickle.dump(self.state, f)
