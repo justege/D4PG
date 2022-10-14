@@ -228,7 +228,7 @@ parser.add_argument("-noise", type=str, choices=["ou", "gauss"], default="gauss"
 parser.add_argument("-info", type=str, default="runsfirst", help="Information or name of the run")
 parser.add_argument("-d2rl", type=int, choices=[0, 1], default=0,
                     help="Uses Deep Actor and Deep Critic Networks if set to 1 as described in the D2RL Paper: https://arxiv.org/pdf/2010.09163.pdf, default=0")
-parser.add_argument("-frames", type=int, default=200000,
+parser.add_argument("-frames", type=int, default=2000,
                     help="The amount of training interactions with the environment, default is 1mio")
 parser.add_argument("-eval_every", type=int, default=500,
                     help="Number of interactions after which the evaluation runs are performed, default = 10000")
@@ -301,8 +301,8 @@ if __name__ == "__main__":
     envs = MultiPro.SubprocVecEnv([lambda: StockEnvTrain(train) for i in range(args.worker)])
     eval_env = StockEnvTest(test_d)
 
-    envs = MultiPro.SubprocVecEnv([lambda: BasicEnv() for i in range(args.worker)])
-    eval_env = BasicEnv()
+    #envs = MultiPro.SubprocVecEnv([lambda: BasicEnv() for i in range(args.worker)])
+    #eval_env = BasicEnv()
     envs.seed(seed)
     eval_env.seed(seed+1)
     torch.manual_seed(seed)
