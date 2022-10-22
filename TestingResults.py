@@ -55,7 +55,7 @@ def data_split(df, start, end):
 
 
 
-def evaluate(frame, eval_runs=5, capture=True, render=False):
+def evaluate(frame, eval_runs=1, capture=True, render=False):
     """
     Makes an evaluation run
     """
@@ -76,11 +76,16 @@ def evaluate(frame, eval_runs=5, capture=True, render=False):
         rewards = 0
         score = 0
         scores = []
+        action_list = []
+        actionsl = []
+        statesl = []
         sharpe = []
         Asset = []
         while True:
             action = agent.act(np.expand_dims(state, axis=0),add_noise=False)
             action_v = np.clip(action, action_low, action_high)
+
+
             #print(state)
             #print(eval_env.day)
             state, reward, done, amnt_penalty = eval_env.step(action_v[0])
@@ -92,8 +97,6 @@ def evaluate(frame, eval_runs=5, capture=True, render=False):
             scores.append(np.mean(score))
             reward_batch.append(rewards)
 
-
-
             #states8.append(state[8])
             #states9.append(state[9])
             #states10.append(state[10])
@@ -101,11 +104,14 @@ def evaluate(frame, eval_runs=5, capture=True, render=False):
             #rewards_list.append(reward)
 
             if done:
+                df_action_states = pd.DataFrame(eval_env.trades_memory, index=None)
+                df_action_states.to_csv('CSVs/State_Actions_Final' + '.csv', mode='a', encoding='utf-8', index=None)
                 sharpe.append(eval_env.sharpe)
                 Asset.append(eval_env.final_asset_value)
                 all_scores.append(np.mean(scores))
                 frame_list.append(frame)
                 run_number.append(i)
+                action_list.append(eval_env.trades_memory)
                 #print(eval_env.day)
                 #df = pd.DataFrame(list(zip(scores, actions, states6, states7, states8, states9, states10, rewards_list)))
                 # print('mean of scores:{}'.format(np.mean(scores)))
@@ -119,10 +125,14 @@ def evaluate(frame, eval_runs=5, capture=True, render=False):
         final_sharpe.append(np.mean(sharpe))
             #print(reward_batch)
 
-    df_scores1 = pd.DataFrame(list(zip(all_scores, frame_list, run_number,sharpe,Asset)))
-    df_scores2 = pd.DataFrame(list(zip(final_Asset, final_frame, final_sharpe)))
-    df_scores1.to_csv('CSVs/Mean_of_Final_results_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_eval_mean.csv', mode='a', encoding='utf-8', index=True)
-    df_scores2.to_csv('CSVs/Detail_Final_results_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_eval_mean.csv', mode='a', encoding='utf-8', index=True)
+
+
+    df_scores1 = pd.DataFrame(list(zip(all_scores, frame_list, run_number,sharpe,Asset)),index=None)
+    df_scores2 = pd.DataFrame(list(zip(final_Asset, final_frame, final_sharpe)), index=None)
+    #df_scores1.to_csv('CSVs/Mean_of_Final_results_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_eval_mean.csv', mode='a', encoding='utf-8', index=True)
+    #df_scores2.to_csv('CSVs/Detail_Final_results_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_eval_mean.csv', mode='a', encoding='utf-8', index=True)
+
+
     return np.mean(df_scores1)
 
 
@@ -244,7 +254,7 @@ parser.add_argument("-frames", type=int, default=2000,
                     help="The amount of training interactions with the environment, default is 1mio")
 parser.add_argument("-eval_every", type=int, default=500,
                     help="Number of interactions after which the evaluation runs are performed, default = 10000")
-parser.add_argument("-eval_runs", type=int, default=5, help="Number of evaluation runs performed, default = 1")
+parser.add_argument("-eval_runs", type=int, default=1, help="Number of evaluation runs performed, default = 1")
 parser.add_argument("-seed", type=int, default=4, help="Seed for the env and torch network weights, default is 0")
 parser.add_argument("-lr_a", type=float, default=3e-4,
                     help="Actor learning rate of adapting the network weights, default is 3e-4")
@@ -339,7 +349,7 @@ if __name__ == "__main__":
 
     t0 = time.time()
     if saved_model == None:
-        for i in range(10,2261,10):
+        for i in range(1380,1391,10):
             eval_env.seed(i)
             print("-------------------------------" + str(i) + "----------------------------")
             agent.actor_local.load_state_dict(torch.load('runs/checkpoint_actor_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_'+str(i)+'.pth'))

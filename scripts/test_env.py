@@ -59,6 +59,11 @@ class StockEnvTest(gym.Env):
                       self.data.adx.values.tolist()
         # initialize reward
         self.reward = 0
+        self.trades_list = [0, 0, 0]
+        self.trades_memory = []
+
+
+
         self.cost = 0
         # memorize all the total balance change
         self.asset_memory = [INITIAL_ACCOUNT_BALANCE]
@@ -75,6 +80,7 @@ class StockEnvTest(gym.Env):
         # print('selling:{}'.format(action))
         # perform sell action based on the sign of the action
         if self.state[index+STOCK_DIM+1] > 0:
+
             #update balance
             self.state[0] += \
             self.state[index+1]*min(abs(action),self.state[index+STOCK_DIM+1]) * \
@@ -84,6 +90,7 @@ class StockEnvTest(gym.Env):
             self.cost +=self.state[index+1]*min(abs(action),self.state[index+STOCK_DIM+1]) * \
              TRANSACTION_FEE_PERCENT
             self.trades+=1
+            self.trades_list[index] = -1
         else:
             pass
 
@@ -105,11 +112,15 @@ class StockEnvTest(gym.Env):
                      TRANSACTION_FEE_PERCENT
 
         if available_amount > 0:
+
+            self.trades_list[index] = 1
+
             self.trades += 1
 
     def step(self, actions):
         # print(self.day)
         # print(self.day)
+
         self.terminal = self.day >= len(self.df.index.unique()) - 1
         # print(actions)
         self.actions = actions
@@ -150,6 +161,15 @@ class StockEnvTest(gym.Env):
             # print("actions-index------:{}".format(actions))
             # actions = (actions.astype(int))
             # print(actions)
+
+            temp_list = []
+            temp_list.extend(list([self.day]))
+            temp_list.extend(list(self.actions))
+            temp_list.extend(list(self.trades_list))
+            temp_list.extend(list(self.state))
+
+            self.trades_list = [0, 0, 0]
+
             actions = actions * HMAX_NORMALIZE
             # print('all-actions:{}'.format(actions))
 
@@ -213,12 +233,20 @@ class StockEnvTest(gym.Env):
             # self.reward = self.reward*REWARD_SCALING
             # print("step_reward:{}".format(self.reward))
 
+
+
+
+            self.trades_memory.append(temp_list)
+
+
+
             self.day += 1
             self.data = self.df.loc[self.day, :]
 
         return self.state, self.reward, self.terminal, self.amount_penalty
 
     def reset(self):
+        self.trades_memory = []
         self.sharpe = 0
         self.amount_penalty = 0
         self.final_asset_value = 0
@@ -241,6 +269,8 @@ class StockEnvTest(gym.Env):
                       self.data.rsi.values.tolist() + \
                       self.data.cci.values.tolist() + \
                       self.data.adx.values.tolist()
+
+        self.trades_list = [0,0,0]
         # iteration += 1
         # print("[0]*STOCK_DIM:{}".format([0]*STOCK_DIM))
         # print("self.state:{}".format(len(self.state)))
