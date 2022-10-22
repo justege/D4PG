@@ -31,7 +31,7 @@ TRAINING_DATA_FILE = "dataprocessing/Yfinance_Data.csv"
 now = datetime.datetime.now()
 TRAINED_MODEL_DIR = f"trained_models/{now}"
 os.makedirs(TRAINED_MODEL_DIR)
-TAUVALUE = 1
+TAUVALUE = 0.6
 TIMEVALUE = 192021
 TAULAYER = 256
 
@@ -81,7 +81,6 @@ def evaluate(frame, eval_runs=5, capture=True, render=False):
         rewards_list = []
         while True:
             action = agent.act(np.expand_dims(state, axis=0),add_noise=False)
-            print(action)
             action_v = np.clip(action, action_low, action_high)
             #print(eval_env.day)
             state, reward, done, amnt_penalty = eval_env.step(action_v[0])
@@ -170,7 +169,7 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
             reward_i = agent.icm.get_intrinsic_reward(state[0], next_state[0], action[0])
             curiosity_logs.append((frame, reward_i))
 
-        score += reward
+        score =  np.add(reward, score, out=a, casting="unsafe")
         scores_deque.append(score)
         scores.append(np.mean(score))
 
@@ -185,8 +184,8 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
 
             df = pd.DataFrame(list(zip(action_list,scores_list,states_list, episode_list,minmax_scores)))
             df.to_csv('results_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau_'+str(TAUVALUE)+'_.csv', mode='a', encoding='utf-8', index=False)
-            torch.save(agent.actor_local.state_dict(), 'runs/checkpoint_actor_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_' + str(i_episode) + ".pth")
-            torch.save(agent.critic_local.state_dict(), 'runs/checkpoint_critic_'+str(TAULAYER)+'6_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_' + str(i_episode) + ".pth")
+            torch.save(agent.actor_local.state_dict(), 'runs/checkpoint_actor_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_' + str(i_episode+1480) + ".pth")
+            torch.save(agent.critic_local.state_dict(), 'runs/checkpoint_critic_'+str(TAULAYER)+'6_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_' + str(i_episode+1480) + ".pth")
             action_list = []
             scores_list = []
             states_list = []
@@ -228,9 +227,9 @@ parser.add_argument("-noise", type=str, choices=["ou", "gauss"], default="gauss"
 parser.add_argument("-info", type=str, default="runsfirst", help="Information or name of the run")
 parser.add_argument("-d2rl", type=int, choices=[0, 1], default=0,
                     help="Uses Deep Actor and Deep Critic Networks if set to 1 as described in the D2RL Paper: https://arxiv.org/pdf/2010.09163.pdf, default=0")
-parser.add_argument("-frames", type=int, default=2000,
+parser.add_argument("-frames", type=int, default=200000,
                     help="The amount of training interactions with the environment, default is 1mio")
-parser.add_argument("-eval_every", type=int, default=500,
+parser.add_argument("-eval_every", type=int, default=5000,
                     help="Number of interactions after which the evaluation runs are performed, default = 10000")
 parser.add_argument("-eval_runs", type=int, default=5, help="Number of evaluation runs performed, default = 1")
 parser.add_argument("-seed", type=int, default=3, help="Seed for the env and torch network weights, default is 0")
@@ -326,13 +325,16 @@ if __name__ == "__main__":
                   LEARN_NUMBER=args.learn_number, device=device, frames=args.frames, worker=args.worker)
 
     t0 = time.time()
-    if saved_model != None:
-        for i in range(120,131,10):
-            print("-------------------------------" + str(i) + "----------------------------")
-            agent.actor_local.load_state_dict(torch.load('runs/checkpoint_actor_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_'+str(i)+'.pth'))
-            agent.critic_local.load_state_dict(torch.load('runs/checkpoint_critic_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_'+str(i)+'.pth'))
+    if saved_model == None:
+        i = 1480
 
-            evaluate(frame=int(len(unique_trade_date))*worker, capture=True)
+        print("-------------------------------" + str(i) + "----------------------------")
+        agent.actor_local.load_state_dict(torch.load('runs/checkpoint_actor_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_'+str(i)+'.pth'))
+        agent.critic_local.load_state_dict(torch.load('runs/checkpoint_critic_'+str(TAULAYER)+'6_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_'+str(i)+'.pth'))
+        run(frames=args.frames // args.worker,
+            eval_every=args.eval_every // args.worker,
+            eval_runs=args.eval_runs,
+            worker=args.worker)
     else:
         run(frames=args.frames // args.worker,
             eval_every=args.eval_every // args.worker,
@@ -343,8 +345,8 @@ if __name__ == "__main__":
    # envs.close()
     timer(t0, t1)
     # save trained model
-    torch.save(agent.actor_local.state_dict(), 'runs/evaluating_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_actor_tau?'+str(TAUVALUE)+'_' + args.info + ".pth")
-    torch.save(agent.critic_local.state_dict(), 'runs/evaluating_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_critic_tau?'+str(TAUVALUE)+'_' + args.info + ".pth")
+    torch.save(agent.actor_local.state_dict(), 'runs/evaluating_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_actor_tau_'+str(TAUVALUE)+'_' + args.info + ".pth")
+    torch.save(agent.critic_local.state_dict(), 'runs/evaluating_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_critic_tau_'+str(TAUVALUE)+'_' + args.info + ".pth")
     # save parameter
     with open('runs/' + args.info + ".json", 'w') as f:
         json.dump(args.__dict__, f, indent=2)

@@ -36,7 +36,7 @@ class StockEnvTest(gym.Env):
         self.df = df
         self.agent_stock_iteration_index = 0
         self.penalty = 0
-
+        self.sharpe = 0
         # action_space normalization and shape is STOCK_DIM
         self.action_space = spaces.Box(low=-1, high=1, shape=(STOCK_DIM,))
         # Shape = 181: [Current Balance]+[prices 1-30]+[owned shares 1-30]
@@ -114,13 +114,9 @@ class StockEnvTest(gym.Env):
         # print(actions)
         self.actions = actions
         if self.terminal:
-            print("Finished")
-            print(self.state)
             end_total_asset = self.state[0] + \
                               sum(np.array(self.state[1:(STOCK_DIM + 1)]) * np.array(
                                   self.state[(STOCK_DIM + 1):(STOCK_DIM * 2 + 1)]))
-
-            print("end_total_asset:{}".format(end_total_asset))
             df_total_value = pd.DataFrame(self.asset_memory)
             # df_total_value.to_csv('results/account_value_train.csv')
             # print("total_reward:{}".format(self.state[0]+sum(np.array(self.state[1:(STOCK_DIM+1)])*np.array(self.state[(STOCK_DIM+1):61]))- INITIAL_ACCOUNT_BALANCE ))
@@ -128,14 +124,15 @@ class StockEnvTest(gym.Env):
             # print("total_trades: ", self.trades)
             df_total_value.columns = ['account_value']
             df_total_value['daily_return'] = df_total_value.pct_change(1)
-            sharpe = (252 ** 0.5) * df_total_value['daily_return'].mean() / \
+            self.sharpe = (252 ** 0.5) * df_total_value['daily_return'].mean() / \
                      df_total_value['daily_return'].std()
-            print("Sharpe: ", sharpe)
+
+            self.final_asset_value = end_total_asset
             # print("=================================")
             df_rewards = pd.DataFrame(self.rewards_memory)
             # df_rewards.to_csv('results/account_rewards_train.csv')
-            df = pd.DataFrame([sharpe, end_total_asset, self.state, self.reward])
-            df.to_csv('results_test_256_2020_2012_tau1_.csv', mode='a', encoding='utf-8', index=False)
+            df = pd.DataFrame([self.sharpe, end_total_asset, self.state, self.reward])
+            # df.to_csv('results_test_256_2020_2012_tau1_.csv', mode='a', encoding='utf-8', index=False)
             # print('total asset: {}'.format(self.state[0]+ sum(np.array(self.state[1:29])*np.array(self.state[29:]))))
             # with open('obs.pkl', 'wb') as f:
             #    pickle.dump(self.state, f)
@@ -222,6 +219,7 @@ class StockEnvTest(gym.Env):
         return self.state, self.reward, self.terminal, self.amount_penalty
 
     def reset(self):
+        self.sharpe = 0
         self.amount_penalty = 0
         self.final_asset_value = 0
         self.trades = 0
