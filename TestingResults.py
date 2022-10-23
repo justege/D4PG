@@ -349,7 +349,7 @@ if __name__ == "__main__":
 
     t0 = time.time()
     if saved_model == None:
-        for i in range(1380,1391,10):
+        for i in range(955,1391,10):
             eval_env.seed(i)
             print("-------------------------------" + str(i) + "----------------------------")
             agent.actor_local.load_state_dict(torch.load('runs/checkpoint_actor_'+str(TAULAYER)+'_'+str(TIMEVALUE)+'_tau'+str(TAUVALUE)+'_'+str(i)+'.pth'))
