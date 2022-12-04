@@ -12,7 +12,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 
 from scripts import MultiPro
 import json
-from scripts.environment import StockEnvTrain
+from scripts.environment import StockEnvTrainWithTA
 from scripts.test_env import StockEnvTest
 
 import pandas as pd
@@ -33,6 +33,11 @@ TRAINED_MODEL_DIR = f"trained_models/{now}"
 os.makedirs(TRAINED_MODEL_DIR)
 
 TESTING_DATA_FILE = "test.csv"
+
+
+MAX = 200_000
+
+COMMENT = 'ThisIsForTest' + str(MAX)
 
 
 def load_dataset(*, file_name: str) -> pd.DataFrame:
@@ -151,26 +156,30 @@ def evaluate(frame, eval_runs=5, capture=True, render=False):
         actions = []
         while True:
             action = agent.act(np.expand_dims(state, axis=0))
-            action_v = np.clip(action, action_low, action_high)
 
-            state, reward, done, amnt_penalty = eval_env.step(action_v[0])
-            rewards += reward
+            state, reward, done, info = eval_env.step(action[0])
             score += reward
+
+            print(info)
+
             scores.append(np.mean(score))
-            states.append(states)
-            actions.append(action_v)
+            states.append(state)
+            actions.append(action)
             if done:
                 break
-        reward_batch.append(rewards)
+
+        reward_batch.append(info['value_portfolio'])
+
         if capture == True:
             all_scores.append(np.mean(scores))
             df = pd.DataFrame(list(zip(scores, state, actions)))
             #print('mean of scores:{}'.format(np.mean(scores)))
-            df.to_csv('results_128_eval.csv', mode='a', encoding='utf-8', index=False)
-            writer.add_scalar("Reward", np.mean(reward_batch), frame)
+            df.to_csv(COMMENT + 'results.csv', mode='a', encoding='utf-8', index=False)
+            writer.add_scalar("Portfolio", np.mean(reward_batch), frame)
             #print(reward_batch)
+
     df_scores = pd.DataFrame(all_scores)
-    df_scores.to_csv('results_128_eval_mean.csv', mode='a', encoding='utf-8', index=False)
+    df_scores.to_csv( COMMENT + 'results_mean.csv', mode='a', encoding='utf-8', index=False)
     print('mean of scores:{}'.format(np.mean(df_scores)))
 
 
@@ -216,7 +225,7 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
 
         action = agent.act(state)
         action_v = np.clip(action, action_low, action_high)
-        next_state, reward, done, amnt_penalty = envs.step(action_v)
+        next_state, reward, done, info = envs.step(action_v)
 
         for s, a, r, ns, d in zip(state, action, reward, next_state, done):
             agent.step(s, a, r, ns, d, frame, writer)
@@ -227,7 +236,6 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
         state = next_state
         score += reward
 
-        amount_penalty.append(amnt_penalty)
         scores_deque.append(np.mean(score))
         scores.append(np.mean(score))
         minmax_scores.append((np.min(score), np.max(score)))
@@ -236,9 +244,9 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
 
         if i_episode % 5 == 0:
             df = pd.DataFrame(list(zip(episodes,average_100_scores, scores_deque, amount_penalty, state, action_v)))
-            df.to_csv('results_256_2016_2019_tau04_.csv', mode='a', encoding='utf-8', index=False)
-            torch.save(agent.actor_local.state_dict(), "runs/checkpoint_actor_256_2016_2019_tau04_" + str(i_episode) + ".pth")
-            torch.save(agent.critic_local.state_dict(), "runs/checkpoint_critic_256_2016_2019_tau04_" + str(i_episode) + ".pth")
+            df.to_csv(COMMENT + 'run' + '.csv', mode='a', encoding='utf-8', index=False)
+            torch.save(agent.actor_local.state_dict(), "runs/checkpoint_actor" + COMMENT + str(i_episode) + ".pth")
+            torch.save(agent.critic_local.state_dict(), "runs/checkpoint_critic" + COMMENT + str(i_episode) + ".pth")
         if i_episode % 5 == 0:
             print('\rEpisode {}\tFrame {} \tAverage100 Score: {:.2f}'.format(i_episode * worker, frame * worker,
                                                                              np.mean(scores_window)), end="")
@@ -275,9 +283,9 @@ parser.add_argument("-noise", type=str, choices=["ou", "gauss"], default="gauss"
 parser.add_argument("-info", type=str, default="runsfirst", help="Information or name of the run")
 parser.add_argument("-d2rl", type=int, choices=[0, 1], default=0,
                     help="Uses Deep Actor and Deep Critic Networks if set to 1 as described in the D2RL Paper: https://arxiv.org/pdf/2010.09163.pdf, default=0")
-parser.add_argument("-frames", type=int, default=200000,
+parser.add_argument("-frames", type=int, default=MAX,
                     help="The amount of training interactions with the environment, default is 1mio")
-parser.add_argument("-eval_every", type=int, default=1000,
+parser.add_argument("-eval_every", type=int, default=550,
                     help="Number of interactions after which the evaluation runs are performed, default = 10000")
 parser.add_argument("-eval_runs", type=int, default=1, help="Number of evaluation runs performed, default = 1")
 parser.add_argument("-seed", type=int, default=3, help="Seed for the env and torch network weights, default is 0")
@@ -287,15 +295,15 @@ parser.add_argument("-lr_c", type=float, default=3e-4,
                     help="Critic learning rate of adapting the network weights, default is 3e-4")
 parser.add_argument("-learn_every", type=int, default=1, help="Learn every x interactions, default = 1")
 parser.add_argument("-learn_number", type=int, default=1, help="Learn x times per interaction, default = 1")
-parser.add_argument("-layer_size", type=int, default=256,
+parser.add_argument("-layer_size", type=int, default=128,
                     help="Number of nodes per neural network layer, default is 256")
 parser.add_argument("-repm", "--replay_memory", type=int, default=int(1e6),
                     help="Size of the Replay memory, default is 1e6")
-parser.add_argument("-bs", "--batch_size", type=int, default=256, help="Batch size, default is 256")
+parser.add_argument("-bs", "--batch_size", type=int, default=128, help="Batch size, default is 256")
 parser.add_argument("-t", "--tau", type=float, default=1e-3,
                     help="Softupdate factor tau, default is 1e-3")  # for per 1e-2 for regular 1e-3 -> Pendulum!
 parser.add_argument("-g", "--gamma", type=float, default=0.99, help="discount factor gamma, default is 0.99")
-parser.add_argument("-w", "--worker", type=int, default=2, help="Number of parallel environments, default = 1")
+parser.add_argument("-w", "--worker", type=int, default=1, help="Number of parallel environments, default = 1")
 parser.add_argument("--saved_model", type=str, default=None, help="Load a saved model to perform a test run!")
 parser.add_argument("--icm", type=int, default=0, choices=[0, 1],
                     help="Using Intrinsic Curiosity Module, default=0 (NO!)")
@@ -306,15 +314,17 @@ args = parser.parse_args()
 
 if __name__ == "__main__":
 
-    preprocessed_path = "done_3stocks.csv"
+    preprocessed_path = "0001_test.csv"
+
+
     if os.path.exists(preprocessed_path):
         data = pd.read_csv(preprocessed_path, index_col=0)
 
     unique_trade_date = data[(data.datadate > 20151001) & (data.datadate <= 20200808)].datadate.unique()
     # print(unique_trade_date)
 
-    train = data_split(data, start=20170101, end=20190101)
-    test_d = data_split(data, start=20190101, end=20200101)
+    train = data_split(data, start=20180101, end=20210101)
+    test_d = data_split(data, start=20210101, end=20220101)
 
     env_name = args.env
     seed = args.seed
@@ -334,10 +344,10 @@ if __name__ == "__main__":
 
     #envs = DummyVecEnv([lambda: StockEnvTrain(train)])
     #envs = MultiPro.SubprocVecEnv([lambda: gym.make(args.env) for i in range(args.worker)])
-    envs = MultiPro.SubprocVecEnv([lambda: StockEnvTrain(train) for i in range(args.worker)])
-    eval_env = StockEnvTest(test_d)
+    envs = MultiPro.SubprocVecEnv([lambda: StockEnvTrainWithTA(train) for i in range(args.worker)])
+    eval_env = StockEnvTrainWithTA(train)
     envs.seed(seed)
-    eval_env.seed(seed+1)
+    eval_env.seed(seed)
     torch.manual_seed(seed)
     np.random.seed(seed)
     if args.device == "gpu" and torch.cuda.is_available():
@@ -360,9 +370,10 @@ if __name__ == "__main__":
 
     t0 = time.time()
     if saved_model != None:
-        agent.actor_local.load_state_dict(torch.load('runs/checkpoint_actor_128100.pth'))
-        agent.critic_local.load_state_dict(torch.load('runs/checkpoint_critic_128100.pth'))
-        evaluate(frame=500, capture=True)
+        for i_episode in range(MAX, 0, 5):
+            agent.actor_local.load_state_dict(torch.load("runs/checkpoint_critic" + COMMENT + str(i_episode) + ".pth"))
+            agent.critic_local.load_state_dict(torch.load("runs/checkpoint_critic" + COMMENT + str(i_episode) + ".pth"))
+            evaluate(frame=500, capture=True)
     else:
         run(frames=args.frames // args.worker,
             eval_every=args.eval_every // args.worker,
@@ -372,9 +383,7 @@ if __name__ == "__main__":
     t1 = time.time()
    # envs.close()
     timer(t0, t1)
-    # save trained model 
-    torch.save(agent.actor_local.state_dict(), 'runs/evaluating_2016_2019_actor_tau04_' + args.info + ".pth")
-    torch.save(agent.critic_local.state_dict(), 'runs/evaluating_2016_2019_critic_tau04_' + args.info + ".pth")
+    # save trained model
     # save parameter
     with open('runs/' + args.info + ".json", 'w') as f:
         json.dump(args.__dict__, f, indent=2)

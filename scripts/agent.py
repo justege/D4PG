@@ -160,6 +160,7 @@ class Agent():
         """Returns actions for given state as per current policy."""
         state = torch.from_numpy(state).float().to(self.device)
 
+
         assert state.shape == (state.shape[0],self.state_size), "shape: {}".format(state.shape)
         self.actor_local.eval()
         with torch.no_grad():
