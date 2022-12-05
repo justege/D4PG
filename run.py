@@ -35,7 +35,9 @@ os.makedirs(TRAINED_MODEL_DIR)
 TESTING_DATA_FILE = "test.csv"
 
 
-MAX = 200_000
+MAX = 100000
+
+TRAINED = 5
 
 COMMENT = 'ThisIsForTest' + str(MAX)
 
@@ -160,8 +162,6 @@ def evaluate(frame, eval_runs=5, capture=True, render=False):
             state, reward, done, info = eval_env.step(action[0])
             score += reward
 
-            print(info)
-
             scores.append(np.mean(score))
             states.append(state)
             actions.append(action)
@@ -202,26 +202,19 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
         eps_end (float): minimum value of epsilon
         eps_decay (float): multiplicative factor (per episode) for decreasing epsilon
     """
-    scores = []
-    amount_penalty = []
+
     # list containing scores from each episode
     scores_window = deque(maxlen=100)  # last 100 scores
     i_episode = 1
     state = envs.reset()
     score = 0
     curiosity_logs = []
-    scores_deque = deque(maxlen=100)
     scores = []
-    minmax_scores = []
-    average_100_scores = []
-    episodes = []
-    time_stamp = 0
     for frame in range(1, frames + 1):
         # evaluation runs
 
-        if frame % eval_every == 0 or frame == 550:
+        if frame % eval_every == 0 or frame == 2000:
             evaluate(frame*worker, eval_runs)
-
 
         action = agent.act(state)
         action_v = np.clip(action, action_low, action_high)
@@ -236,28 +229,32 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
         state = next_state
         score += reward
 
-        scores_deque.append(np.mean(score))
-        scores.append(np.mean(score))
-        minmax_scores.append((np.min(score), np.max(score)))
-        average_100_scores.append(np.mean(scores_deque))
-        episodes.append(i_episode)
+        if i_episode % 5 == 0:
 
-        if i_episode % 5 == 0:
-            df = pd.DataFrame(list(zip(episodes,average_100_scores, scores_deque, amount_penalty, state, action_v)))
-            df.to_csv(COMMENT + 'run' + '.csv', mode='a', encoding='utf-8', index=False)
-            torch.save(agent.actor_local.state_dict(), "runs/checkpoint_actor" + COMMENT + str(i_episode) + ".pth")
-            torch.save(agent.critic_local.state_dict(), "runs/checkpoint_critic" + COMMENT + str(i_episode) + ".pth")
-        if i_episode % 5 == 0:
-            print('\rEpisode {}\tFrame {} \tAverage100 Score: {:.2f}'.format(i_episode * worker, frame * worker,
-                                                                             np.mean(scores_window)), end="")
+            if TRAINED != None:
+                PATH = "runs/model" + COMMENT + str(i_episode + TRAINED) + ".pt"
+            else:
+                PATH = "runs/model" + COMMENT + str(i_episode) + ".pt"
+
+            torch.save({
+                'epoch': frame,
+                'actor_model_state_dict': agent.actor_local.state_dict(),
+                'critic_model_state_dict':agent.critic_local.state_dict(),
+                'actor_optimizer_state_dict': agent.actor_optimizer.state_dict(),
+                'critic_optimizer_state_dict': agent.critic_optimizer.state_dict(),
+                'entropy_coeff': agent.entropy_coeff,
+                'epsilon': agent.epsilon,
+                'EPSILON_DECAY': agent.EPSILON_DECAY,
+                'entropy_tau': agent.entropy_tau,
+                'GAMMA': agent.GAMMA,
+                'memory': agent.memory,
+            }, PATH)
 
         if done.any():
             scores_window.append(score)  # save most recent score
             scores.append(score)  # save most recent score
             writer.add_scalar("Average100", np.mean(scores_window), frame * worker)
-            for v in curiosity_logs:
-                i, r = v[0], v[1]
-                writer.add_scalar("Intrinsic Reward", r, i)
+
             print('\rEpisode {}\tFrame {} \tAverage100 Score: {:.2f}'.format(i_episode * worker, frame * worker,
                                                                              np.mean(scores_window)), end="")
             # if i_episode % 100 == 0:
@@ -285,7 +282,7 @@ parser.add_argument("-d2rl", type=int, choices=[0, 1], default=0,
                     help="Uses Deep Actor and Deep Critic Networks if set to 1 as described in the D2RL Paper: https://arxiv.org/pdf/2010.09163.pdf, default=0")
 parser.add_argument("-frames", type=int, default=MAX,
                     help="The amount of training interactions with the environment, default is 1mio")
-parser.add_argument("-eval_every", type=int, default=550,
+parser.add_argument("-eval_every", type=int, default=2000,
                     help="Number of interactions after which the evaluation runs are performed, default = 10000")
 parser.add_argument("-eval_runs", type=int, default=1, help="Number of evaluation runs performed, default = 1")
 parser.add_argument("-seed", type=int, default=3, help="Seed for the env and torch network weights, default is 0")
@@ -323,6 +320,14 @@ if __name__ == "__main__":
     unique_trade_date = data[(data.datadate > 20151001) & (data.datadate <= 20200808)].datadate.unique()
     # print(unique_trade_date)
 
+    data = data[["datadate", "tic", "adjcp", "open", "high", "low", "volume", "macd", "rsi", "cci", "adx"]]
+
+    data['adjcp'] = round(data['adjcp'], 1)
+    data['macd'] = round(data['macd'], 1)
+    data['rsi'] = round(data['rsi'], 1)
+    data['cci'] = round(data['cci'], 1)
+    data['adx'] = round(data['adx'], 1)
+
     train = data_split(data, start=20180101, end=20210101)
     test_d = data_split(data, start=20210101, end=20220101)
 
@@ -341,6 +346,8 @@ if __name__ == "__main__":
     D2RL = args.d2rl
 
     writer = SummaryWriter("runs/" + args.info)
+
+
 
     #envs = DummyVecEnv([lambda: StockEnvTrain(train)])
     #envs = MultiPro.SubprocVecEnv([lambda: gym.make(args.env) for i in range(args.worker)])
@@ -369,10 +376,26 @@ if __name__ == "__main__":
                   LEARN_NUMBER=args.learn_number, device=device, frames=args.frames, worker=args.worker)
 
     t0 = time.time()
+
+
+    if TRAINED != None:
+        print('OK, i will load the already trained models and opitimizers for you...')
+        checkpoint = torch.load("runs/model" + COMMENT + str(TRAINED) + ".pt")
+        print(checkpoint)
+        agent.actor_local.load_state_dict(checkpoint['actor_model_state_dict'])
+        agent.critic_local.load_state_dict(checkpoint['critic_model_state_dict'])
+        agent.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
+        agent.critic_optimizer.load_state_dict(checkpoint['critic_optimizer_state_dict'])
+        agent.memory = checkpoint['memory']
+        agent.entropy_coeff  = checkpoint['entropy_coeff']
+        agent.epsilon = checkpoint['epsilon']
+        agent.EPSILON_DECAY = checkpoint['EPSILON_DECAY']
+        agent.entropy_tau = checkpoint['entropy_tau']
+        agent.GAMMA = checkpoint['GAMMA']
+        agent.memory = checkpoint['memory']
+
     if saved_model != None:
-        for i_episode in range(MAX, 0, 5):
-            agent.actor_local.load_state_dict(torch.load("runs/checkpoint_critic" + COMMENT + str(i_episode) + ".pth"))
-            agent.critic_local.load_state_dict(torch.load("runs/checkpoint_critic" + COMMENT + str(i_episode) + ".pth"))
+        for i_episode in range(5, 200, 5):
             evaluate(frame=500, capture=True)
     else:
         run(frames=args.frames // args.worker,

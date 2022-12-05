@@ -95,7 +95,7 @@ class IQN(nn.Module):
         self.dueling = dueling
         self.device = device
 
-        # Network Architecture
+        # Network Architecturefc1.
 
         self.head = nn.Linear(self.action_size+self.input_shape, layer_size) 
         self.cos_embedding = nn.Linear(self.n_cos, layer_size)
