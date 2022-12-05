@@ -37,7 +37,7 @@ TESTING_DATA_FILE = "test.csv"
 
 MAX = 100000
 
-TRAINED = 5
+TRAINED = 20
 
 COMMENT = 'ThisIsForTest' + str(MAX)
 
@@ -163,25 +163,18 @@ def evaluate(frame, eval_runs=5, capture=True, render=False):
             score += reward
 
             scores.append(np.mean(score))
+            reward_batch.append(info['value_portfolio'])
             states.append(state)
             actions.append(action)
             if done:
                 break
 
-        reward_batch.append(info['value_portfolio'])
-
         if capture == True:
             all_scores.append(np.mean(scores))
-            df = pd.DataFrame(list(zip(scores, state, actions)))
+            df = pd.DataFrame(list(zip(scores, state, actions, reward_batch)))
             #print('mean of scores:{}'.format(np.mean(scores)))
             df.to_csv(COMMENT + 'results.csv', mode='a', encoding='utf-8', index=False)
-            writer.add_scalar("Portfolio", np.mean(reward_batch), frame)
             #print(reward_batch)
-
-    df_scores = pd.DataFrame(all_scores)
-    df_scores.to_csv( COMMENT + 'results_mean.csv', mode='a', encoding='utf-8', index=False)
-    print('mean of scores:{}'.format(np.mean(df_scores)))
-
 
 # The algorithms require a vectorized environment to run
 def timer(start, end):
@@ -229,7 +222,7 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
         state = next_state
         score += reward
 
-        if i_episode % 5 == 0:
+        if i_episode % 25 == 0:
 
             if TRAINED != None:
                 PATH = "runs/model" + COMMENT + str(i_episode + TRAINED) + ".pt"
