@@ -85,7 +85,7 @@ class StockEnvTrainWithTA(gym.Env):
             sharpe = (252 ** 0.5) * df_total_value['daily_return'].mean() / \
                      df_total_value['daily_return'].std()
 
-            pd.DataFrame({'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades]}).to_csv("runs/Results_Train.csv",index=False, mode='a', header=False)
+            pd.DataFrame({'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades]}).to_csv("runs/Results_Train_longrun500.csv",index=False, mode='a', header=False)
             info = {'mean reward': np.mean(self.rewards_memory), 'value_portfolio': self.P_t_0, 'sharpe': sharpe}
 
 

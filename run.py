@@ -35,9 +35,9 @@ os.makedirs(TRAINED_MODEL_DIR)
 TESTING_DATA_FILE = "test.csv"
 
 
-MAX = 100000
+MAX = 500000
 
-TRAINED = 20
+TRAINED = None
 
 COMMENT = 'ThisIsForTest' + str(MAX)
 
@@ -140,41 +140,25 @@ def preprocess_data():
     df_final.fillna(method='bfill', inplace=True)
     return df_final
 
-def evaluate(frame, eval_runs=5, capture=True, render=False):
+def evaluate(env, eval_runs=1, render=False):
     """
     Makes an evaluation run
     """
-    print("------------------------------------------EVALUATING---------------------------------------------------")
-    reward_batch = []
 
-    all_scores = []
+    print("------------------------------------------EVALUATING---------------------------------------------------")
+    eval_env = env
     for i in range(eval_runs):
         state = eval_env.reset()
         if render: eval_env.render()
-        rewards = 0
-        score = 0
-        scores = []
-        states = []
-        actions = []
         while True:
             action = agent.act(np.expand_dims(state, axis=0))
-
-            state, reward, done, info = eval_env.step(action[0])
-            score += reward
-
-            scores.append(np.mean(score))
-            reward_batch.append(info['value_portfolio'])
-            states.append(state)
-            actions.append(action)
+            action_v = np.clip(action, action_low, action_high)
+            print(action_v)
+            state, reward, done, info = eval_env.step(action_v[0])
             if done:
+                print(info)
                 break
 
-        if capture == True:
-            all_scores.append(np.mean(scores))
-            df = pd.DataFrame(list(zip(scores, state, actions, reward_batch)))
-            #print('mean of scores:{}'.format(np.mean(scores)))
-            df.to_csv(COMMENT + 'results.csv', mode='a', encoding='utf-8', index=False)
-            #print(reward_batch)
 
 # The algorithms require a vectorized environment to run
 def timer(start, end):
@@ -222,8 +206,7 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
         state = next_state
         score += reward
 
-        if i_episode % 25 == 0:
-
+        if i_episode % 60 == 0:
             if TRAINED != None:
                 PATH = "runs/model" + COMMENT + str(i_episode + TRAINED) + ".pt"
             else:
@@ -235,12 +218,6 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
                 'critic_model_state_dict':agent.critic_local.state_dict(),
                 'actor_optimizer_state_dict': agent.actor_optimizer.state_dict(),
                 'critic_optimizer_state_dict': agent.critic_optimizer.state_dict(),
-                'entropy_coeff': agent.entropy_coeff,
-                'epsilon': agent.epsilon,
-                'EPSILON_DECAY': agent.EPSILON_DECAY,
-                'entropy_tau': agent.entropy_tau,
-                'GAMMA': agent.GAMMA,
-                'memory': agent.memory,
             }, PATH)
 
         if done.any():
@@ -294,7 +271,7 @@ parser.add_argument("-t", "--tau", type=float, default=1e-3,
                     help="Softupdate factor tau, default is 1e-3")  # for per 1e-2 for regular 1e-3 -> Pendulum!
 parser.add_argument("-g", "--gamma", type=float, default=0.99, help="discount factor gamma, default is 0.99")
 parser.add_argument("-w", "--worker", type=int, default=1, help="Number of parallel environments, default = 1")
-parser.add_argument("--saved_model", type=str, default=None, help="Load a saved model to perform a test run!")
+parser.add_argument("--saved_model", type=str, default="None", help="Load a saved model to perform a test run!")
 parser.add_argument("--icm", type=int, default=0, choices=[0, 1],
                     help="Using Intrinsic Curiosity Module, default=0 (NO!)")
 parser.add_argument("--add_ir", type=int, default=0, choices=[0, 1],
@@ -345,7 +322,7 @@ if __name__ == "__main__":
     #envs = DummyVecEnv([lambda: StockEnvTrain(train)])
     #envs = MultiPro.SubprocVecEnv([lambda: gym.make(args.env) for i in range(args.worker)])
     envs = MultiPro.SubprocVecEnv([lambda: StockEnvTrainWithTA(train) for i in range(args.worker)])
-    eval_env = StockEnvTrainWithTA(train)
+    eval_env = StockEnvTrainWithTA(test_d)
     envs.seed(seed)
     eval_env.seed(seed)
     torch.manual_seed(seed)
@@ -373,23 +350,25 @@ if __name__ == "__main__":
 
     if TRAINED != None:
         print('OK, i will load the already trained models and opitimizers for you...')
-        checkpoint = torch.load("runs/model" + COMMENT + str(TRAINED) + ".pt")
+        #checkpoint = torch.load("runs/model" + COMMENT + str(TRAINED) + ".pt")
+        checkpoint = torch.load("/Users/egemenokur/PycharmProjects/D4PG_New_season/runs/modelThisIsForTest500000180.pt")
+
         print(checkpoint)
         agent.actor_local.load_state_dict(checkpoint['actor_model_state_dict'])
         agent.critic_local.load_state_dict(checkpoint['critic_model_state_dict'])
         agent.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
         agent.critic_optimizer.load_state_dict(checkpoint['critic_optimizer_state_dict'])
-        agent.memory = checkpoint['memory']
-        agent.entropy_coeff  = checkpoint['entropy_coeff']
-        agent.epsilon = checkpoint['epsilon']
-        agent.EPSILON_DECAY = checkpoint['EPSILON_DECAY']
-        agent.entropy_tau = checkpoint['entropy_tau']
-        agent.GAMMA = checkpoint['GAMMA']
-        agent.memory = checkpoint['memory']
 
     if saved_model != None:
-        for i_episode in range(5, 200, 5):
-            evaluate(frame=500, capture=True)
+
+        for i_episode in range(60, 541, 60):
+            checkpoint = torch.load(
+                "/Users/egemenokur/PycharmProjects/D4PG_New_season/runs/modelThisIsForTest500000" + str(i_episode) + ".pt")
+            agent.actor_local.load_state_dict(checkpoint['actor_model_state_dict'])
+            agent.critic_local.load_state_dict(checkpoint['critic_model_state_dict'])
+            agent.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
+            agent.critic_optimizer.load_state_dict(checkpoint['critic_optimizer_state_dict'])
+            evaluate(env=eval_env)
     else:
         run(frames=args.frames // args.worker,
             eval_every=args.eval_every // args.worker,
