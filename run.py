@@ -153,7 +153,6 @@ def evaluate(env, eval_runs=1, render=False):
         while True:
             action = agent.act(np.expand_dims(state, axis=0))
             action_v = np.clip(action, action_low, action_high)
-            print(action_v)
             state, reward, done, info = eval_env.step(action_v[0])
             if done:
                 print(info)
