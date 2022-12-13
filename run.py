@@ -13,6 +13,8 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from scripts import MultiPro
 import json
 from scripts.environment import StockEnvTrainWithTA
+from scripts.ValidateEnvironmentWithPV import StockEnvValidateWithPV
+from scripts.environmentWithPV import StockEnvTrainWithPV
 from scripts.test_env import StockEnvTest
 
 import pandas as pd
@@ -39,7 +41,9 @@ MAX = 500000
 
 TRAINED = None
 
-COMMENT = 'ThisIsForTest' + str(MAX)
+TAU = 0.75
+
+COMMENT = 'DistributedAlgoNewState_' + str(TAU) + '_Tau' + str(MAX)
 
 
 def load_dataset(*, file_name: str) -> pd.DataFrame:
@@ -153,10 +157,8 @@ def evaluate(env, eval_runs=1, render=False):
         while True:
             action = agent.act(np.expand_dims(state, axis=0))
             action_v = np.clip(action, action_low, action_high)
-            print(action_v)
             state, reward, done, info = eval_env.step(action_v[0])
             if done:
-                print(info)
                 break
 
 
@@ -191,7 +193,7 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
         # evaluation runs
 
         if frame % eval_every == 0 or frame == 2000:
-            evaluate(frame*worker, eval_runs)
+            evaluate(train_env)
 
         action = agent.act(state)
         action_v = np.clip(action, action_low, action_high)
@@ -206,11 +208,12 @@ def run(frames=1000, eval_every=1000, eval_runs=5, worker=1):
         state = next_state
         score += reward
 
-        if i_episode % 60 == 0:
+        if i_episode % 30 == 0:
             if TRAINED != None:
                 PATH = "runs/model" + COMMENT + str(i_episode + TRAINED) + ".pt"
             else:
                 PATH = "runs/model" + COMMENT + str(i_episode) + ".pt"
+
 
             torch.save({
                 'epoch': frame,
@@ -271,7 +274,7 @@ parser.add_argument("-t", "--tau", type=float, default=1e-3,
                     help="Softupdate factor tau, default is 1e-3")  # for per 1e-2 for regular 1e-3 -> Pendulum!
 parser.add_argument("-g", "--gamma", type=float, default=0.99, help="discount factor gamma, default is 0.99")
 parser.add_argument("-w", "--worker", type=int, default=1, help="Number of parallel environments, default = 1")
-parser.add_argument("--saved_model", type=str, default="None", help="Load a saved model to perform a test run!")
+parser.add_argument("--saved_model", type=str, default=None, help="Load a saved model to perform a test run!")
 parser.add_argument("--icm", type=int, default=0, choices=[0, 1],
                     help="Using Intrinsic Curiosity Module, default=0 (NO!)")
 parser.add_argument("--add_ir", type=int, default=0, choices=[0, 1],
@@ -321,10 +324,11 @@ if __name__ == "__main__":
 
     #envs = DummyVecEnv([lambda: StockEnvTrain(train)])
     #envs = MultiPro.SubprocVecEnv([lambda: gym.make(args.env) for i in range(args.worker)])
-    envs = MultiPro.SubprocVecEnv([lambda: StockEnvTrainWithTA(train) for i in range(args.worker)])
-    eval_env = StockEnvTrainWithTA(test_d)
+    envs = MultiPro.SubprocVecEnv([lambda: StockEnvTrainWithPV(train) for i in range(args.worker)])
+    train_env = StockEnvTrainWithPV(train)
+    train_env.seed(seed)
     envs.seed(seed)
-    eval_env.seed(seed)
+
     torch.manual_seed(seed)
     np.random.seed(seed)
     if args.device == "gpu" and torch.cuda.is_available():
@@ -351,19 +355,22 @@ if __name__ == "__main__":
     if TRAINED != None:
         print('OK, i will load the already trained models and opitimizers for you...')
         #checkpoint = torch.load("runs/model" + COMMENT + str(TRAINED) + ".pt")
-        checkpoint = torch.load("/Users/egemenokur/PycharmProjects/D4PG_New_season/runs/modelThisIsForTest500000180.pt")
-
-        print(checkpoint)
+        checkpoint = torch.load("")
         agent.actor_local.load_state_dict(checkpoint['actor_model_state_dict'])
         agent.critic_local.load_state_dict(checkpoint['critic_model_state_dict'])
         agent.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
         agent.critic_optimizer.load_state_dict(checkpoint['critic_optimizer_state_dict'])
 
     if saved_model != None:
-
         for i_episode in range(60, 541, 60):
+            train_env = StockEnvTrainWithTA(train, modelNumber=i_episode, tauValue=TAU, testOrTrain='Train')
+            eval_env = StockEnvTrainWithTA(test_d, modelNumber=i_episode, tauValue=TAU, testOrTrain='Test')
+            eval_env.seed(seed)
+            train_env.seed(seed)
+
+
             checkpoint = torch.load(
-                "/Users/egemenokur/PycharmProjects/D4PG_New_season/runs/modelThisIsForTest500000" + str(i_episode) + ".pt")
+                "/Users/egemenokur/PycharmProjects/D4PG_New_season/runs/"+ COMMENT + str(i_episode) + ".pt")
             agent.actor_local.load_state_dict(checkpoint['actor_model_state_dict'])
             agent.critic_local.load_state_dict(checkpoint['critic_model_state_dict'])
             agent.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])

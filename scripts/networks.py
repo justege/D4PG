@@ -134,8 +134,8 @@ class IQN(nn.Module):
         
         cos, taus = self.calc_cos(batch_size, num_tau) # cos shape (batch, num_tau, layer_size)
 
-        #print(f"taus: {taus}")
-        taus = taus
+        #TAUVALUE
+        taus = taus*0.75
 
         cos = cos.view(batch_size*num_tau, self.n_cos)
         cos_x = torch.relu(self.cos_embedding(cos)).view(batch_size, num_tau, self.layer_size) # (batch, n_tau, layer)

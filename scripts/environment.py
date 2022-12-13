@@ -44,14 +44,14 @@ class StockEnvTrainWithTA(gym.Env):
         self.data = self.df.loc[self.day, :]
         self.terminal = False
         # initalize state
-        self.state = [INITIAL_ACCOUNT_BALANCE] + \
+        self.state = [1] + \
                      [0] * STOCK_DIM + \
                      self.data.adjcp.values.tolist() + \
                      self.data.macd.values.tolist() + \
                      self.data.rsi.values.tolist() + \
                      self.data.cci.values.tolist() + \
                      self.data.adx.values.tolist()
-        # initialize reward
+            # initialize reward
         self.reward = 0
         self.cost = 0
         # memorize all the total balance change
@@ -114,25 +114,19 @@ class StockEnvTrainWithTA(gym.Env):
 
             v_t_0 = np.array([1] + self.state[(STOCK_DIM + 1):(STOCK_DIM * 2 + 1)])
 
-
             self.W_t = np.array(self.state[:(STOCK_DIM + 1)])
-
             Y_t = np.divide(v_t_0,v_t_1)
 
             self.cost = TRANSACTION_FEE_PERCENT * (
                 np.abs(self.W_t_1[1:] - self.W_t[1:])).sum()
 
             self.P_t_0 = self.P_t_1 * (1 - self.cost) * np.dot(Y_t,self.W_t_1)
-
             self.W_t_1 = self.W_t
-
             self.P_t_0 = np.clip(self.P_t_0, 0, np.inf)
-
             self.asset_memory.append(self.P_t_0)
-
             self.reward = np.log((self.P_t_0 + (1e-7))/ (self.P_t_1 + (1e-7)))
-
             self.P_t_1 = self.P_t_0
+
 
             self.rewards_memory.append(self.reward)
 
@@ -154,7 +148,7 @@ class StockEnvTrainWithTA(gym.Env):
         self.terminal = False
         self.rewards_memory = []
         # initiate state
-        self.state = [INITIAL_ACCOUNT_BALANCE] + \
+        self.state = [1] + \
                      [0] * STOCK_DIM + \
                      self.data.adjcp.values.tolist() + \
                      self.data.macd.values.tolist() + \
