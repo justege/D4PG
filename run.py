@@ -39,7 +39,7 @@ TESTING_DATA_FILE = "test.csv"
 
 MAX = 500000
 
-TRAINED = None
+TRAINED = 180
 
 TAU = 0.75
 
@@ -280,6 +280,7 @@ parser.add_argument("--icm", type=int, default=0, choices=[0, 1],
 parser.add_argument("--add_ir", type=int, default=0, choices=[0, 1],
                     help="Add intrisic reward to the extrinsic reward, default = 0 (NO!) ")
 
+
 args = parser.parse_args()
 
 if __name__ == "__main__":
@@ -354,33 +355,19 @@ if __name__ == "__main__":
 
     if TRAINED != None:
         print('OK, i will load the already trained models and opitimizers for you...')
-        #checkpoint = torch.load("runs/model" + COMMENT + str(TRAINED) + ".pt")
-        checkpoint = torch.load("")
+        checkpoint = torch.load(
+            "/Users/egemenokur/PycharmProjects/D4PG_New_season/runs/model" + COMMENT + str(TRAINED) + ".pt")
         agent.actor_local.load_state_dict(checkpoint['actor_model_state_dict'])
         agent.critic_local.load_state_dict(checkpoint['critic_model_state_dict'])
         agent.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
         agent.critic_optimizer.load_state_dict(checkpoint['critic_optimizer_state_dict'])
 
-    if saved_model != None:
-        for i_episode in range(60, 541, 60):
-            train_env = StockEnvTrainWithTA(train, modelNumber=i_episode, tauValue=TAU, testOrTrain='Train')
-            eval_env = StockEnvTrainWithTA(test_d, modelNumber=i_episode, tauValue=TAU, testOrTrain='Test')
-            eval_env.seed(seed)
-            train_env.seed(seed)
+        print(checkpoint)
 
-
-            checkpoint = torch.load(
-                "/Users/egemenokur/PycharmProjects/D4PG_New_season/runs/"+ COMMENT + str(i_episode) + ".pt")
-            agent.actor_local.load_state_dict(checkpoint['actor_model_state_dict'])
-            agent.critic_local.load_state_dict(checkpoint['critic_model_state_dict'])
-            agent.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
-            agent.critic_optimizer.load_state_dict(checkpoint['critic_optimizer_state_dict'])
-            evaluate(env=eval_env)
-    else:
-        run(frames=args.frames // args.worker,
-            eval_every=args.eval_every // args.worker,
-            eval_runs=args.eval_runs,
-            worker=args.worker)
+    run(frames=args.frames // args.worker,
+        eval_every=args.eval_every // args.worker,
+        eval_runs=args.eval_runs,
+        worker=args.worker)
 
     t1 = time.time()
    # envs.close()
