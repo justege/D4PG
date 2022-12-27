@@ -9,14 +9,13 @@ import argparse
 # from  files import MultiPro
 from scripts.agent import Agent
 from stable_baselines3.common.vec_env import DummyVecEnv
-
 from scripts import MultiPro
 import json
 from scripts.environment import StockEnvTrainWithTA
-from scripts.ValidateEnvironmentWithPV import StockEnvValidateWithPV
-from scripts.environmentWithPV import StockEnvTrainWithPV
-from scripts.test_env import StockEnvTest
-
+from scripts.EnvironmentVersion3.environmentVersion3 import StockEnvTrainVersion3
+from scripts.EnvironmentWithPV.ValidateEnvironmentWithPV import StockEnvValidateWithPV
+from scripts.EnvironmentWithPV.environmentWithPV import StockEnvTrainWithPV
+from scripts.EnvironmentWithoutPV.test_env import StockEnvTest
 import pandas as pd
 
 import numpy as np
@@ -39,11 +38,11 @@ TESTING_DATA_FILE = "test.csv"
 
 MAX = 500000
 
-TRAINED = 180
+TRAINED = None
 
-TAU = 0.75
+TAU = 1
 
-COMMENT = 'DistributedAlgoNewState_' + str(TAU) + '_Tau' + str(MAX)
+COMMENT = 'DistributedAlgoVersion3_' + str(TAU) + '_Tau' + str(MAX)
 
 
 def load_dataset(*, file_name: str) -> pd.DataFrame:
@@ -158,6 +157,7 @@ def evaluate(env, eval_runs=1, render=False):
             action = agent.act(np.expand_dims(state, axis=0))
             action_v = np.clip(action, action_low, action_high)
             state, reward, done, info = eval_env.step(action_v[0])
+            print(info)
             if done:
                 break
 
@@ -325,8 +325,8 @@ if __name__ == "__main__":
 
     #envs = DummyVecEnv([lambda: StockEnvTrain(train)])
     #envs = MultiPro.SubprocVecEnv([lambda: gym.make(args.env) for i in range(args.worker)])
-    envs = MultiPro.SubprocVecEnv([lambda: StockEnvTrainWithPV(train) for i in range(args.worker)])
-    train_env = StockEnvTrainWithPV(train)
+    envs = MultiPro.SubprocVecEnv([lambda: StockEnvTrainVersion3(train) for i in range(args.worker)])
+    train_env = StockEnvTrainVersion3(train)
     train_env.seed(seed)
     envs.seed(seed)
 

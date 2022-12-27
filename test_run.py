@@ -42,11 +42,11 @@ TESTING_DATA_FILE = "test.csv"
 
 
 MAX = 500000
-TRAINED = 60
-TauValue = 1
-EXTRAINFORMATION = 'OldState'
+TRAINED = 30
+TauValue = 0.25
+EXTRAINFORMATION = 'NewState'
 find_best_validation = True
-COMMENT = 'DistributedAlgoOldState_1_Tau'  + str(MAX)
+COMMENT = 'DistributedAlgo'+EXTRAINFORMATION+'_0.25_Tau'  + str(MAX)
 
 
 
@@ -240,8 +240,8 @@ if __name__ == "__main__":
     data['adx'] = round(data['adx'], 1)
 
     train = data_split(data, start=20180101, end=20210101)
-    validate_data = data_split(data, start=20210101, end=20220601)
-    test_data = data_split(data, start=20210601, end=20220601)
+    validate_data = data_split(data, start=20210101, end=20210601)
+    test_data = data_split(data, start=20210601, end=20220101)
 
     env_name = args.env
     seed = args.seed
@@ -259,7 +259,7 @@ if __name__ == "__main__":
 
     writer = SummaryWriter("runs/" + args.info)
 
-    envs = MultiPro.SubprocVecEnv([lambda: StockEnvTrainWithTA(train) for i in range(args.worker)])
+    envs = MultiPro.SubprocVecEnv([lambda: StockEnvTrainWithPV(train) for i in range(args.worker)])
     torch.manual_seed(seed)
     np.random.seed(seed)
     if args.device == "gpu" and torch.cuda.is_available():
@@ -288,9 +288,9 @@ if __name__ == "__main__":
     selected_best_sharpe_model_number = 0
 
     if TRAINED != None:
-        for i_episode in range(60, 421, 60):
+        for i_episode in range(30, 301, 30):
             print('OK, i will load the already trained models and opitimizers for you...')
-            vali_env = StockEnvValidateWithTA(validate_data, modelNumber=i_episode, tauValue=TauValue, testOrTrain='validate', extraInformation=EXTRAINFORMATION)
+            vali_env = StockEnvValidateWithPV(validate_data, modelNumber=i_episode, tauValue=TauValue, testOrTrain='validate', extraInformation=EXTRAINFORMATION)
             vali_env.seed(seed)
 
             checkpoint = torch.load("/Users/egemenokur/PycharmProjects/D4PG_New_season/runs/model" + COMMENT + str(i_episode) + ".pt")
@@ -321,7 +321,7 @@ if __name__ == "__main__":
             print('Best Model...Model-Number:{}'.format(selected_best_mean_return_model_number))
             print('Best Model...Portfolio Value:{}'.format(selected_best_mean_return_portfolioValue))
             print('Now we can evaluate the best model...')
-            test_env = StockEnvTestingWithTA(test_data, modelNumber=selected_best_mean_return_model_number, tauValue=TauValue, testOrTrain='test', extraInformation=EXTRAINFORMATION)
+            test_env = StockEnvTestingWithPV(test_data, modelNumber=selected_best_mean_return_model_number, tauValue=TauValue, testOrTrain='test', extraInformation=EXTRAINFORMATION)
             test_env.seed(seed)
 
             checkpoint = torch.load("/Users/egemenokur/PycharmProjects/D4PG_New_season/runs/model" + COMMENT + str(selected_best_mean_return_model_number) + ".pt")

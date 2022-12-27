@@ -25,7 +25,7 @@ REWARD_SCALING = 1
 
 #[-0.7*HMAX_NORMALIZE, 0.5*HMAX_NORMALIZE,0.3*HMAX_NORMALIZE]
 # w1, w2, w3,
-class StockEnvValidateWithPV(gym.Env):
+class StockEnvTestingWithPV(gym.Env):
     """A stock trading environment for OpenAI gym"""
     metadata = {'render.modes': ['human']}
 
@@ -86,19 +86,41 @@ class StockEnvValidateWithPV(gym.Env):
         # print(actions)
 
         if self.terminal:
+            plt.plot(self.asset_memory, 'r')
+            plt.plot(self.asset_memory_equal_weights, 'b')
+            plt.savefig('runs/' + self.testOrTrain  + '/account_value_' + self.testOrTrain  + str(self.modelNumber) + "_" + str(self.tauValue) + '.png')
+            plt.close()
 
             df_total_value = pd.DataFrame(self.asset_memory)
+            df_total_value.to_csv('runs/' + self.testOrTrain  + '/account_value_' + self.testOrTrain  + str(self.modelNumber) + "_" + str(self.tauValue) +'.csv')
+            df_total_value.columns = ['account_value']
             df_total_value['daily_return'] = df_total_value.pct_change(1)
             sharpe = (252 ** 0.5) * df_total_value['daily_return'].mean() / \
                      df_total_value['daily_return'].std()
 
 
-            info = {'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'riskless_state': [self.cash_states],'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost], 'variance': [df_total_value['daily_return'].std()], 'mean_return':[df_total_value['daily_return'].mean()]}
+            #CVAR
+            #Alpha
+            #Beta
+
+            total_return = df_total_value['daily_return'].cumsum()
+            drawdown = total_return - total_return.cummax()
+            maxDD = drawdown.min()
+
+
+            # 'totalReturn': [total_return], 'drawdown': [drawdown], 'maxDD': [maxDD]
+
+            pd.DataFrame({'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost], 'variance': [df_total_value['daily_return'].std()], 'maxDD': [maxDD], 'mean_return':[df_total_value['daily_return'].mean()],'riskless_state': [self.cash_states]}).to_csv("runs/" + self.testOrTrain  + '/' + "resultsPortfolioValue_" + self.testOrTrain +  ".csv",index=False, mode='a', header=False)
+            pd.DataFrame({'weight_memory':self.weight_memory}).to_csv("runs/" +  self.testOrTrain + '/' + str(self.modelNumber) + "_resultsWeights_" + self.testOrTrain  + '_' + str(self.modelNumber) + "_" + str(self.tauValue) +".csv",index=True, mode='a', header=False)
+#            'asset_memory': self.asset_memory, 'asset_memory_equal_weights': self.asset_memory_equal_weights
+            info = {'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'riskless_state': [self.cash_states],'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost], 'variance': [df_total_value['daily_return'].std()], 'maxDD': [maxDD], 'mean_return':[df_total_value['daily_return'].mean()]}
 
             return self.state, self.reward, self.terminal, info
 
         else:
             actions = actions
+
+            print(actions)
 
             if actions[0]>(actions[1] and actions[2] and actions[3]):
                 self.cash_states = self.cash_states + 1
@@ -168,7 +190,7 @@ class StockEnvValidateWithPV(gym.Env):
 
             self.rewards_memory.append(self.reward)
 
-            info = {'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost]}
+            info = {'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'riskless_state': [self.cash_states]}
 
         return self.state, self.reward, self.terminal, info
 
