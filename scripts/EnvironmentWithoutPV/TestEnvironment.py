@@ -38,7 +38,8 @@ class StockEnvTestingWithTA(gym.Env):
         self.tauValue = tauValue
         self.testOrTrain = testOrTrain
         self.extraInformation = extraInformation
-        self.cash_states = 0
+        self.cashHigherThanEach = 0
+        self.cashHigherThanAll = 0
 
         # action_space normalization and shape is STOCK_DIM
         self.action_space = spaces.Box(low=0, high=1, shape=(STOCK_DIM + 1,))
@@ -109,17 +110,21 @@ class StockEnvTestingWithTA(gym.Env):
 
             # 'totalReturn': [total_return], 'drawdown': [drawdown], 'maxDD': [maxDD]
 
-            pd.DataFrame({'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost], 'variance': [df_total_value['daily_return'].std()], 'maxDD': [maxDD], 'mean_return':[df_total_value['daily_return'].mean()],'riskless_state': [self.cash_states]}).to_csv("runs/" + self.testOrTrain  + '/' + "resultsPortfolioValue_" + self.testOrTrain +  ".csv",index=False, mode='a', header=False)
+            pd.DataFrame({'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost], 'variance': [df_total_value['daily_return'].std()], 'maxDD': [maxDD], 'mean_return':[df_total_value['daily_return'].mean()],'cashHigherThanEach': [self.cashHigherThanEach],'cashHigherThanAll': [self.cashHigherThanAll]}).to_csv("runs/" + self.testOrTrain  + '/' + "resultsPortfolioValue_" + self.testOrTrain +  ".csv",index=False, mode='a', header=False)
             pd.DataFrame({'weight_memory':self.weight_memory}).to_csv("runs/" +  self.testOrTrain + '/' + str(self.modelNumber) + "_resultsWeights_" + self.testOrTrain  + '_' + str(self.modelNumber) + "_" + str(self.tauValue) +".csv",index=True, mode='a', header=False)
-            info = {'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'riskless_state': [self.cash_states],'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost], 'variance': [df_total_value['daily_return'].std()], 'mean_return':[df_total_value['daily_return'].mean()]}
+            info = {'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'cashHigherThanEach': [self.cashHigherThanEach],'cashHigherThanAll': [self.cashHigherThanAll],'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost], 'variance': [df_total_value['daily_return'].std()], 'mean_return':[df_total_value['daily_return'].mean()]}
 
             return self.state, self.reward, self.terminal, info
 
         else:
             actions = actions
 
-            if actions[0]>(actions[1] and actions[2] and actions[3]):
-                self.cash_states = self.cash_states + 1
+            if (actions[0]>actions[1]) and  (actions[0]>actions[2]) and (actions[0]>actions[3]):
+                self.cashHigherThanEach = self.cashHigherThanEach + 1
+
+            if (actions[0]>(actions[1] + actions[2] + actions[3])):
+                self.cashHigherThanAll = self.cashHigherThanAll + 1
+
 
             v_t_1 = np.array([1] + self.state[(STOCK_DIM + 1):(STOCK_DIM * 2 + 1)])
 
@@ -176,7 +181,7 @@ class StockEnvTestingWithTA(gym.Env):
 
             self.rewards_memory.append(self.reward)
 
-            info = {'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'riskless_state': [self.cash_states],'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost]}
+            info = {'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'cashHigherThanEach': [self.cashHigherThanEach],'cashHigherThanAll': [self.cashHigherThanAll],'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost]}
 
         return self.state, self.reward, self.terminal, info
 
@@ -195,7 +200,8 @@ class StockEnvTestingWithTA(gym.Env):
         self.cost = 0
         self.trades = 0
         self.total_cost = 0
-        self.cash_states = 0
+        self.cashHigherThanEach = 0
+        self.cashHigherThanAll = 0
         self.terminal = False
         self.rewards_memory = []
         # initalize state

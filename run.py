@@ -40,7 +40,7 @@ MAX = 500000
 
 TRAINED = None
 
-TAU = 1
+TAU = 0.375
 
 COMMENT = 'DistributedAlgoVersion3_' + str(TAU) + '_Tau' + str(MAX)
 

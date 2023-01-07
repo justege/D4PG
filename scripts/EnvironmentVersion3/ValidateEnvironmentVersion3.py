@@ -25,11 +25,11 @@ REWARD_SCALING = 1
 
 #[-0.7*HMAX_NORMALIZE, 0.5*HMAX_NORMALIZE,0.3*HMAX_NORMALIZE]
 # w1, w2, w3,
-class StockEnvTestingWithPV(gym.Env):
+class StockEnvValidateVersion3(gym.Env):
     """A stock trading environment for OpenAI gym"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, df, modelNumber, tauValue, testOrTrain , extraInformation, day=0):
+    def __init__(self, df, modelNumber, tauValue, testOrTrain, extraInformation ,day=0):
         # super(StockEnv, self).__init__()
         # money = 10 , scope = 1
         self.day = day
@@ -43,11 +43,11 @@ class StockEnvTestingWithPV(gym.Env):
         self.action_space = spaces.Box(low=0, high=1, shape=(STOCK_DIM + 1,))
         # Shape = 181: [Current Balance]+[prices 1-30]+[owned shares 1-30]
         # +[macd 1-30]+ [rsi 1-30] + [cci 1-30] + [adx 1-30]
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(20,))
+        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(22,))
         # load data from a pandas dataframe
         self.data = self.df.loc[self.day, :]
         self.terminal = False
-        # initalize state
+        # initiate state
         self.state = [1] + \
                      [0] * STOCK_DIM + \
                      self.data.adjcp.values.tolist() + \
@@ -55,10 +55,8 @@ class StockEnvTestingWithPV(gym.Env):
                      self.data.rsi.values.tolist() + \
                      self.data.cci.values.tolist() + \
                      self.data.adx.values.tolist() + \
-                    [INITIAL_ACCOUNT_BALANCE]
+                     [0] * STOCK_DIM
         # initialize reward
-        self.cashHigherThanEach = 0
-        self.cashHigherThanAll = 0
         self.reward = 0
         self.cost = 0
         self.total_cost = 0
@@ -87,52 +85,23 @@ class StockEnvTestingWithPV(gym.Env):
         # print(actions)
 
         if self.terminal:
-            plt.plot(self.asset_memory, 'r')
-            plt.plot(self.asset_memory_equal_weights, 'b')
-            plt.savefig('runs/' + self.testOrTrain  + '/account_value_' + self.testOrTrain  + str(self.modelNumber) + "_" + str(self.tauValue) + '.png')
-            plt.close()
-
             df_total_value = pd.DataFrame(self.asset_memory)
-            df_total_value.to_csv('runs/' + self.testOrTrain  + '/account_value_' + self.testOrTrain  + str(self.modelNumber) + "_" + str(self.tauValue) +'.csv')
-            df_total_value.columns = ['account_value']
             df_total_value['daily_return'] = df_total_value.pct_change(1)
             sharpe = (252 ** 0.5) * df_total_value['daily_return'].mean() / \
                      df_total_value['daily_return'].std()
 
-
-            #CVAR
-            #Alpha
-            #Beta
-
-            total_return = df_total_value['daily_return'].cumsum()
-            drawdown = total_return - total_return.cummax()
-            maxDD = drawdown.min()
-
-
-            # 'totalReturn': [total_return], 'drawdown': [drawdown], 'maxDD': [maxDD]
-
-            pd.DataFrame({'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost], 'variance': [df_total_value['daily_return'].std()], 'maxDD': [maxDD], 'mean_return':[df_total_value['daily_return'].mean()],'cashHigherThanEach': [self.cashHigherThanEach],'cashHigherThanAll': [self.cashHigherThanAll]}).to_csv("runs/" + self.testOrTrain  + '/' + "resultsPortfolioValue_" + self.testOrTrain +  ".csv",index=False, mode='a', header=False)
-            pd.DataFrame({'weight_memory':self.weight_memory}).to_csv("runs/" +  self.testOrTrain + '/' + str(self.modelNumber) + "_resultsWeights_" + self.testOrTrain  + '_' + str(self.modelNumber) + "_" + str(self.tauValue) +".csv",index=True, mode='a', header=False)
-#            'asset_memory': self.asset_memory, 'asset_memory_equal_weights': self.asset_memory_equal_weights
-            info = {'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'cashHigherThanEach': [self.cashHigherThanEach],'cashHigherThanAll': [self.cashHigherThanAll],'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost], 'variance': [df_total_value['daily_return'].std()], 'maxDD': [maxDD], 'mean_return':[df_total_value['daily_return'].mean()]}
+            info = {'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost], 'variance': [df_total_value['daily_return'].std()], 'mean_return':[df_total_value['daily_return'].mean()]}
 
             return self.state, self.reward, self.terminal, info
 
         else:
-            actions = actions
-
-            print(actions)
-
-            if (actions[0]>actions[1]) and  (actions[0]>actions[2]) and (actions[0]>actions[3]):
-                self.cashHigherThanEach = self.cashHigherThanEach + 1
-
-            if (actions[0]>(actions[1] + actions[2] + actions[3])):
-                self.cashHigherThanAll = self.cashHigherThanAll + 1
-
             v_t_1 = np.array([1] + self.state[(STOCK_DIM + 1):(STOCK_DIM * 2 + 1)])
 
-            numerator = np.exp(actions)
-            denominator = np.sum(np.exp(actions))
+
+            beta = 2
+            e = np.dot(beta, actions)
+            numerator = np.exp(e)
+            denominator = np.sum(np.exp(e))
             softmax_output = numerator / denominator
 
             self.day += 1
@@ -141,13 +110,13 @@ class StockEnvTestingWithPV(gym.Env):
 
             # print("stock_shares:{}".format(self.state[29:]))
             self.state = [self.state[0]] + \
-                         list(self.state[(1):(STOCK_DIM+ 1)]) + \
+                         list(self.state[(1):(STOCK_DIM + 1)]) + \
                          self.data.adjcp.values.tolist() + \
                          self.data.macd.values.tolist() + \
                          self.data.rsi.values.tolist() + \
                          self.data.cci.values.tolist() + \
-                         self.data.adx.values.tolist() + \
-                         [self.P_t_1]
+                         self.data.adx.values.tolist()
+
 
             v_t_0 = np.array([1] + self.state[(STOCK_DIM + 1):(STOCK_DIM * 2 + 1)])
 
@@ -172,7 +141,6 @@ class StockEnvTestingWithPV(gym.Env):
             self.P_t_0 = np.clip(self.P_t_0, 0, np.inf)
 
             self.asset_memory.append(self.P_t_0)
-
             self.asset_memory_equal_weights.append(self.P_equalWeights_t_0)
 
             self.weight_memory.append(self.W_t)
@@ -181,22 +149,25 @@ class StockEnvTestingWithPV(gym.Env):
 
             self.P_t_1 = self.P_t_0
 
+            share_weight1 = (self.P_t_0 * self.state[1]) / self.state[(STOCK_DIM + 1)]
+            share_weight2 = (self.P_t_0 * self.state[2]) / self.state[(STOCK_DIM + 2)]
+            share_weight3 = (self.P_t_0 * self.state[3]) / self.state[(STOCK_DIM + 3)]
+
             self.state = [self.state[0]] + \
-                         list(self.state[(1):(STOCK_DIM+ 1)]) + \
+                         list(self.state[(1):(STOCK_DIM + 1)]) + \
                          self.data.adjcp.values.tolist() + \
                          self.data.macd.values.tolist() + \
                          self.data.rsi.values.tolist() + \
                          self.data.cci.values.tolist() + \
                          self.data.adx.values.tolist() + \
-                         [self.P_t_1]
+                         [share_weight1, share_weight2, share_weight3]
+
 
             self.P_equalWeights_t_1 = self.P_equalWeights_t_0
 
             self.rewards_memory.append(self.reward)
 
-            info = {'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'cashHigherThanEach': [self.cashHigherThanEach],'cashHigherThanAll': [self.cashHigherThanAll]}
-
-        return self.state, self.reward, self.terminal, info
+        return self.state, self.reward, self.terminal, {}
 
     def reset(self):
         self.P_t_1 =  1
@@ -205,8 +176,6 @@ class StockEnvTestingWithPV(gym.Env):
         self.P_equalWeights_t_0 = 0
         self.W_t_1 = [1, 0 ,0 ,0]
         self.W_t   = [1, 0 ,0 ,0]
-        self.cashHigherThanEach = 0
-        self.cashHigherThanAll = 0
         self.Yt = self.data.adjcp.values.tolist()
         self.asset_memory = [INITIAL_ACCOUNT_BALANCE]
         self.weight_memory = []
@@ -217,7 +186,7 @@ class StockEnvTestingWithPV(gym.Env):
         self.total_cost = 0
         self.terminal = False
         self.rewards_memory = []
-        # initalize state
+        # initiate state
         self.state = [1] + \
                      [0] * STOCK_DIM + \
                      self.data.adjcp.values.tolist() + \
@@ -225,7 +194,7 @@ class StockEnvTestingWithPV(gym.Env):
                      self.data.rsi.values.tolist() + \
                      self.data.cci.values.tolist() + \
                      self.data.adx.values.tolist() + \
-                    [INITIAL_ACCOUNT_BALANCE]
+                     [0] * STOCK_DIM
         # iteration += 1
         return self.state
 
