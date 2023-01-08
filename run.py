@@ -290,7 +290,7 @@ if __name__ == "__main__":
     if os.path.exists(preprocessed_path):
         data = pd.read_csv(preprocessed_path, index_col=0)
 
-    unique_trade_date = data[(data.datadate > 20150101) & (data.datadate <= 20230101)].datadate.unique()
+    unique_trade_date = data[(data.datadate > 20160101) & (data.datadate <= 20230101)].datadate.unique()
     # print(unique_trade_date)
 
     data = data[["datadate", "tic", "adjcp", "open", "high", "low", "volume", "macd", "rsi", "cci", "adx"]]
@@ -301,7 +301,10 @@ if __name__ == "__main__":
     data['cci'] = round(data['cci'], 1)
     data['adx'] = round(data['adx'], 1)
 
-    train = data_split(data, start=20150101, end=20200101)
+    train = data_split(data, start=20160101, end=20200101)
+
+    print(train)
+
     test_d = data_split(data, start=20200101, end=20210101)
 
     env_name = args.env
