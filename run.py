@@ -40,9 +40,9 @@ MAX = 500000
 
 TRAINED = None
 
-TAU = 0.375
+TAU = 1
 
-COMMENT = 'DistributedAlgoVersion3_' + str(TAU) + '_Tau' + str(MAX)
+COMMENT = 'DistributedAlgoVersion3_NewData_' + str(TAU) + '_Tau' + str(MAX)
 
 
 def load_dataset(*, file_name: str) -> pd.DataFrame:
@@ -291,7 +291,7 @@ if __name__ == "__main__":
     if os.path.exists(preprocessed_path):
         data = pd.read_csv(preprocessed_path, index_col=0)
 
-    unique_trade_date = data[(data.datadate > 20151001) & (data.datadate <= 20200808)].datadate.unique()
+    unique_trade_date = data[(data.datadate > 20150101) & (data.datadate <= 20230101)].datadate.unique()
     # print(unique_trade_date)
 
     data = data[["datadate", "tic", "adjcp", "open", "high", "low", "volume", "macd", "rsi", "cci", "adx"]]
@@ -302,8 +302,8 @@ if __name__ == "__main__":
     data['cci'] = round(data['cci'], 1)
     data['adx'] = round(data['adx'], 1)
 
-    train = data_split(data, start=20180101, end=20210101)
-    test_d = data_split(data, start=20210101, end=20220101)
+    train = data_split(data, start=20150101, end=20200101)
+    test_d = data_split(data, start=20200101, end=20210101)
 
     env_name = args.env
     seed = args.seed
