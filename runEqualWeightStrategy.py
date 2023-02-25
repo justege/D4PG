@@ -46,12 +46,10 @@ TESTING_DATA_FILE = "test.csv"
 
 MAX = 500000
 TRAINED = 30
-MAXTRAINED = 451
-TauValue = 0.375
-EXTRAINFORMATION = 'Version3'
+TauValue = 99
 PreInformation = 'Version3'
 find_best_validation = True
-COMMENT = 'DistributedAlgoVersion3_NewData'+'_0.375_Tau'  + str(MAX)
+COMMENT = 'DistributedAlgoVersion3_NewData'+'_99_Tau'  + str(MAX)
 
 
 def load_dataset(*, file_name: str) -> pd.DataFrame:
@@ -163,11 +161,10 @@ def evaluate(env, eval_runs=1, render=False):
         state = eval_env.reset()
         if render: eval_env.render()
         while True:
-            action = agent.act(np.expand_dims(state, axis=0))
+            action = np.array([0.25, 0.25, 0.25, 0.25])
             action_v = np.clip(action, action_low, action_high)
-            state, reward, done, info = eval_env.step(action_v[0])
+            state, reward, done, info = eval_env.step(action_v)
             if done:
-
                 break
     return info
 
@@ -278,64 +275,15 @@ if __name__ == "__main__":
     action_low = envs.action_space.low[0]
     state_size = envs.observation_space.shape[0]
     action_size = envs.action_space.shape[0]
-    agent = Agent(state_size=state_size, action_size=action_size, n_step=args.nstep, per=args.per,
-                  munchausen=args.munchausen, distributional=args.iqn,
-                  D2RL=D2RL, curiosity=(args.icm, args.add_ir), noise_type=args.noise, random_seed=seed,
-                  hidden_size=HIDDEN_SIZE, BATCH_SIZE=BATCH_SIZE, BUFFER_SIZE=BUFFER_SIZE, GAMMA=GAMMA,
-                  LR_ACTOR=LR_ACTOR, LR_CRITIC=LR_CRITIC, TAU=TAU, LEARN_EVERY=args.learn_every,
-                  LEARN_NUMBER=args.learn_number, device=device, frames=args.frames, worker=args.worker)
 
     t0 = time.time()
 
-    info_mean_reward_previous = 0
-    info_sharpe_previous = 0
-    selected_best_sharpe = 0
-    selected_best_sharpe_model_number = 0
 
-    if TRAINED != None:
-        for i_episode in range(TRAINED, MAXTRAINED, TRAINED):
-            print('OK, i will load the already trained models and opitimizers for you...')
-            vali_env = StockEnvValidateVersion3(validate_data, modelNumber=i_episode, tauValue=TauValue, testOrTrain='validate', extraInformation=EXTRAINFORMATION)
-            vali_env.seed(seed)
+    test_env = StockEnvTestingVersion3(test_data, modelNumber=99, tauValue=99, testOrTrain='test', extraInformation='equalWeight')
 
-            checkpoint = torch.load("/Users/egemenokur/PycharmProjects/D4PG_New_season/runs/model" + COMMENT + str(i_episode) + ".pt")
-            agent.actor_local.load_state_dict(checkpoint['actor_model_state_dict'])
-            agent.critic_local.load_state_dict(checkpoint['critic_model_state_dict'])
-            agent.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
-            agent.critic_optimizer.load_state_dict(checkpoint['critic_optimizer_state_dict'])
+    test_env.seed(seed)
 
-            info_test =  evaluate(env=vali_env)
-
-            print(info_test)
-
-            if find_best_validation:
-                info_mean_reward_current = info_test['mean_return'][0]
-                print(info_mean_reward_current)
-
-                if info_mean_reward_current>info_mean_reward_previous:
-                    selected_best_mean_return = info_test['mean_return']
-                    selected_best_mean_return_model_number = info_test['model_number']
-                    selected_best_mean_return_sharpe_ratio = info_test['sharpe']
-                    selected_best_mean_return_portfolioValue = info_test['value_portfolio']
-
-                info_mean_reward_previous = info_test['mean_return'][0]
-
-        if find_best_validation:
-            print('Best Model...Mean Return :{}'.format(selected_best_mean_return))
-            print('Best Model...Sharpe Ratio:{}'.format(selected_best_mean_return_sharpe_ratio))
-            print('Best Model...Model-Number:{}'.format(selected_best_mean_return_model_number))
-            print('Best Model...Portfolio Value:{}'.format(selected_best_mean_return_portfolioValue))
-            print('Now we can evaluate the best model...')
-            test_env = StockEnvTestingVersion3(test_data, modelNumber=selected_best_mean_return_model_number, tauValue=TauValue, testOrTrain='test', extraInformation=EXTRAINFORMATION)
-            test_env.seed(seed)
-
-            checkpoint = torch.load("/Users/egemenokur/PycharmProjects/D4PG_New_season/runs/model" + COMMENT + str(selected_best_mean_return_model_number) + ".pt")
-            agent.actor_local.load_state_dict(checkpoint['actor_model_state_dict'])
-            agent.critic_local.load_state_dict(checkpoint['critic_model_state_dict'])
-            agent.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
-            agent.critic_optimizer.load_state_dict(checkpoint['critic_optimizer_state_dict'])
-
-            info_test = evaluate(env=test_env)
+    info_test = evaluate(env=test_env)
 
 
     t1 = time.time()

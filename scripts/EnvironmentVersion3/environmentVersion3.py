@@ -29,10 +29,11 @@ class StockEnvTrainVersion3(gym.Env):
     """A stock trading environment for OpenAI gym"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, df, day=0):
+    def __init__(self, df, day=0, model=''):
         # super(StockEnv, self).__init__()
         # money = 10 , scope = 1
         self.day = day
+        self.model = model
         self.df = df
 
         # action_space normalization and shape is STOCK_DIM
@@ -87,7 +88,7 @@ class StockEnvTrainVersion3(gym.Env):
             sharpe = (252 ** 0.5) * df_total_value['daily_return'].mean() / \
                      df_total_value['daily_return'].std()
 
-            pd.DataFrame({'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades]}).to_csv("runs/Results_Train_longrun500.csv",index=False, mode='a', header=False)
+            pd.DataFrame({'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades], 'mean reward': np.mean(self.rewards_memory)}).to_csv("runs/Results_during_Training" + self.model + ".csv",index=False, mode='a', header=False)
             info = {'mean reward': np.mean(self.rewards_memory), 'value_portfolio': self.P_t_0, 'sharpe': sharpe}
 
 

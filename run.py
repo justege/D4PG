@@ -40,7 +40,7 @@ MAX = 500000
 
 TRAINED = None
 
-TAU = 1
+TAU = 0.875
 
 COMMENT = 'DistributedAlgoVersion3_NewData_' + str(TAU) + '_Tau' + str(MAX)
 
@@ -286,7 +286,6 @@ if __name__ == "__main__":
 
     preprocessed_path = "0001_test.csv"
 
-
     if os.path.exists(preprocessed_path):
         data = pd.read_csv(preprocessed_path, index_col=0)
 
@@ -323,12 +322,10 @@ if __name__ == "__main__":
 
     writer = SummaryWriter("runs/" + args.info)
 
-
-
     #envs = DummyVecEnv([lambda: StockEnvTrain(train)])
     #envs = MultiPro.SubprocVecEnv([lambda: gym.make(args.env) for i in range(args.worker)])
     envs = MultiPro.SubprocVecEnv([lambda: StockEnvTrainVersion3(train) for i in range(args.worker)])
-    train_env = StockEnvTrainVersion3(train)
+    train_env = StockEnvTrainVersion3(train, model=str(TAU))
     train_env.seed(seed)
     envs.seed(seed)
 

@@ -40,6 +40,7 @@ class StockEnvTestingVersion3(gym.Env):
         self.extraInformation = extraInformation
         self.cashHigherThanEach = 0
         self.cashHigherThanAll = 0
+        self.amountInvested = []
 
         # action_space normalization and shape is STOCK_DIM
         self.action_space = spaces.Box(low=0, high=1, shape=(STOCK_DIM + 1,))
@@ -65,6 +66,7 @@ class StockEnvTestingVersion3(gym.Env):
         # memorize all the total balance change
         self.asset_memory = [INITIAL_ACCOUNT_BALANCE]
         self.weight_memory = []
+        self.price_memory = []
         self.rewards_memory = []
         self.trades = 0
         self.P_t_0 = 0
@@ -93,26 +95,37 @@ class StockEnvTestingVersion3(gym.Env):
             plt.close()
 
             df_total_value = pd.DataFrame(self.asset_memory)
-            df_total_value.to_csv('runs/' + self.testOrTrain  + '/account_value_' + self.testOrTrain  + str(self.modelNumber) + "_" + str(self.tauValue) +'.csv')
             df_total_value.columns = ['account_value']
             df_total_value['daily_return'] = df_total_value.pct_change(1)
             sharpe = (252 ** 0.5) * df_total_value['daily_return'].mean() / \
                      df_total_value['daily_return'].std()
 
-
-            #CVAR
-            #Alpha
-            #Beta
-
             total_return = df_total_value['daily_return'].cumsum()
             drawdown = total_return - total_return.cummax()
             maxDD = drawdown.min()
 
+            pd.DataFrame({'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost], 'variance': [df_total_value['daily_return'].std()], 'maxDD': [maxDD], 'mean_return':[df_total_value['daily_return'].mean()],'cashHigherThanEach': [self.cashHigherThanEach],'cashHigherThanAll': [self.cashHigherThanAll], 'invested_in_cash': 0 }).to_csv("runs/" + self.testOrTrain  + '/' + "resultsPortfolioValue_" + self.testOrTrain +  ".csv",index=False, mode='a', header=False)
 
-            # 'totalReturn': [total_return], 'drawdown': [drawdown], 'maxDD': [maxDD]
+            weight_memory_str = ['{}'.format(','.join(map(str, row))) for row in self.weight_memory]
+            price_memory_str = ['{}'.format(','.join(map(str, row))) for row in self.price_memory]
 
-            pd.DataFrame({'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost], 'variance': [df_total_value['daily_return'].std()], 'maxDD': [maxDD], 'mean_return':[df_total_value['daily_return'].mean()],'cashHigherThanEach': [self.cashHigherThanEach],'cashHigherThanAll': [self.cashHigherThanAll]}).to_csv("runs/" + self.testOrTrain  + '/' + "resultsPortfolioValue_" + self.testOrTrain +  ".csv",index=False, mode='a', header=False)
-            pd.DataFrame({'weight_memory':self.weight_memory}).to_csv("runs/" +  self.testOrTrain + '/' + str(self.modelNumber) + "_resultsWeights_" + self.testOrTrain  + '_' + str(self.modelNumber) + "_" + str(self.tauValue) +".csv",index=True, mode='a', header=False)
+            pd.DataFrame({'weight_memory': weight_memory_str, 'prices': price_memory_str}).to_csv(
+                "runs/" + self.testOrTrain + '/' + "PriceAndWeightDistribution_" + self.testOrTrain + '_' + str(
+                    self.modelNumber) + "_" + str(self.tauValue) + ".csv", index=True, mode='a', header=False, sep=',')
+
+            with open(
+                "runs/" + self.testOrTrain + '/' + "PriceAndWeightDistribution_" + self.testOrTrain + '_' + str(
+                    self.modelNumber) + "_" + str(self.tauValue) + ".csv", "r") as file:
+                content = file.read()
+
+            content = content.replace('"', '')
+
+            with open("runs/" + self.testOrTrain + '/' + "PriceAndWeightDistribution_" + self.testOrTrain + '_' + str(
+                    self.modelNumber) + "_" + str(self.tauValue) + ".csv", "w") as file:
+                file.write(content)
+
+            pd.DataFrame({'portfolio_value': self.asset_memory, 'equal_weight': self.asset_memory_equal_weights}).to_csv("runs/" +  self.testOrTrain + '/' + "PortfolioValueAndEqualWeight_" + self.testOrTrain  + '_' + str(self.modelNumber) + "_" + str(self.tauValue) +".csv",index=True, mode='a', header=False, sep=',')
+            pd.DataFrame({'daily_returns':df_total_value['daily_return']}).to_csv("runs/" +  self.testOrTrain + '/' + "DailyReturnDistribution_" + self.testOrTrain  + '_' + str(self.modelNumber) + "_" + str(self.tauValue) +".csv",index=True, mode='a', header=False, sep=',')
             info = {'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'cashHigherThanEach': [self.cashHigherThanEach],'cashHigherThanAll': [self.cashHigherThanAll],'sharpe':[sharpe],'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost], 'variance': [df_total_value['daily_return'].std()], 'mean_return':[df_total_value['daily_return'].mean()]}
 
             return self.state, self.reward, self.terminal, info
@@ -120,21 +133,17 @@ class StockEnvTestingVersion3(gym.Env):
         else:
             actions = actions
 
-            if (actions[0]>actions[1]) and  (actions[0]>actions[2]) and (actions[0]>actions[3]):
-                self.cashHigherThanEach = self.cashHigherThanEach + 1
-
-            if (actions[0]>(actions[1] + actions[2] + actions[3])):
-                self.cashHigherThanAll = self.cashHigherThanAll + 1
-
 
             v_t_1 = np.array([1] + self.state[(STOCK_DIM + 1):(STOCK_DIM * 2 + 1)])
 
             numerator = np.exp(actions)
             denominator = np.sum(np.exp(actions))
+
             softmax_output = numerator / denominator
 
             self.day += 1
             self.data = self.df.loc[self.day, :]
+
             self.state[0], self.state[1], self.state[2], self.state[3] = softmax_output
 
             # print("stock_shares:{}".format(self.state[29:]))
@@ -147,6 +156,7 @@ class StockEnvTestingVersion3(gym.Env):
                          self.data.adx.values.tolist()
 
             v_t_0 = np.array([1] + self.state[(STOCK_DIM + 1):(STOCK_DIM * 2 + 1)])
+
 
 
             self.W_t = np.array(self.state[:(STOCK_DIM + 1)])
@@ -171,9 +181,11 @@ class StockEnvTestingVersion3(gym.Env):
             self.asset_memory.append(self.P_t_0)
             self.asset_memory_equal_weights.append(self.P_equalWeights_t_0)
 
-            self.weight_memory.append(self.W_t)
 
-            self.reward = np.log((self.P_t_0 + (1e-7))/ (self.P_t_1 + (1e-7)))
+            self.weight_memory.append(self.W_t)
+            self.price_memory.append(v_t_0)
+
+            self.reward = np.log((self.P_t_0 + (1e-7)) / (self.P_t_1 + (1e-7)))
 
             self.P_t_1 = self.P_t_0
 
@@ -194,6 +206,8 @@ class StockEnvTestingVersion3(gym.Env):
 
             self.rewards_memory.append(self.reward)
 
+            #self.amountInvested.extend(softmax_output[0])
+
             info = {'extraInformation:': self.extraInformation,'tauValue':self.tauValue,'model_number': self.modelNumber,'cashHigherThanEach': [self.cashHigherThanEach],'cashHigherThanAll': [self.cashHigherThanAll],'value_portfolio':[self.P_t_0],'trades':[self.trades],'total_cost':[self.total_cost]}
 
         return self.state, self.reward, self.terminal, info
@@ -205,9 +219,11 @@ class StockEnvTestingVersion3(gym.Env):
         self.P_equalWeights_t_0 = 0
         self.W_t_1 = [1, 0 ,0 ,0]
         self.W_t   = [1, 0 ,0 ,0]
+        self.amountInvested = []
         self.Yt = self.data.adjcp.values.tolist()
         self.asset_memory = [INITIAL_ACCOUNT_BALANCE]
         self.weight_memory = []
+        self.price_memory = []
         self.day = 0
         self.data = self.df.loc[self.day, :]
         self.cost = 0
